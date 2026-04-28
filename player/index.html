@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncCinema - 一起看视频</title>
+    <link rel="stylesheet" href="player.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 登录/注册页面 -->
+        <div id="auth-page" class="page">
+            <div class="auth-container">
+                <div class="logo">
+                    <h1>SyncCinema</h1>
+                    <p>与远方的朋友一起看电影</p>
+                </div>
+                
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">登录</button>
+                    <button class="auth-tab" data-tab="register">注册</button>
+                </div>
+                
+                <!-- 登录表单 -->
+                <form id="login-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="login-username">用户名</label>
+                        <input type="text" id="login-username" placeholder="请输入用户名" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">密码</label>
+                        <input type="password" id="login-password" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">登录</button>
+                </form>
+                
+                <!-- 注册表单 -->
+                <form id="register-form" class="auth-form hidden">
+                    <div class="form-group">
+                        <label for="reg-username">用户名</label>
+                        <input type="text" id="reg-username" placeholder="请输入用户名" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">密码</label>
+                        <input type="password" id="reg-password" placeholder="请输入密码" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password2">确认密码</label>
+                        <input type="password" id="reg-password2" placeholder="请再次输入密码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">注册</button>
+                </form>
+                
+                <div id="auth-error" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- 大厅页面 -->
+        <div id="lobby-page" class="page hidden">
+            <header class="header">
+                <div class="header-left">
+                    <h1>SyncCinema</h1>
+                </div>
+                <div class="header-right">
+                    <span id="user-name">User</span>
+                    <button id="create-room-btn" class="btn btn-primary">+ 创建房间</button>
+                    <button id="logout-btn" class="btn btn-secondary">退出</button>
+                </div>
+            </header>
+
+            <main class="lobby-main">
+                <div class="lobby-header">
+                    <h2>公开房间</h2>
+                    <div class="search-box">
+                        <input type="text" id="room-search" placeholder="搜索房间...">
+                    </div>
+                </div>
+                <div class="history-section">
+                    <h3>📺 最近观看</h3>
+                    <div id="watch-history" class="history-list">
+                        <!-- 动态填充 -->
+                    </div>
+                </div>
+                
+                <div id="rooms-list" class="rooms-grid">
+                    <!-- 动态填充房间卡片 -->
+                </div>
+                
+                <div id="empty-rooms" class="empty-state hidden">
+                    <div class="empty-icon">🏠</div>
+                    <p>暂无公开房间</p>
+                    <p class="sub">创建一个房间，邀请朋友一起看电影吧！</p>
+                </div>
+            </main>
+        </div>
+
+        <!-- 创建房间弹窗 -->
+        <div id="create-room-modal" class="modal-overlay hidden">
+            <div class="modal">
+                <h3>创建房间</h3>
+                <form id="create-room-form">
+                    <div class="form-group">
+                        <label for="room-name">房间名称</label>
+                        <input type="text" id="room-name" placeholder="给房间起个名字" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="room-video">视频链接</label>
+                        <input type="url" id="room-video" placeholder="输入视频URL（支持MP4等格式）">
+                        <small class="form-hint">支持 MP4、WebM 等格式的视频链接</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="room-public" checked>
+                            <span>公开房间（其他人可以在大厅看到）</span>
+                        </label>
+                    </div>
+                    <div class="form-group" id="password-group">
+                        <label for="room-password">房间密码</label>
+                        <input type="password" id="room-password" placeholder="设置密码（可选）">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-create">取消</button>
+                        <button type="submit" class="btn btn-primary">创建</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 加入房间弹窗（私密房间） -->
+        <div id="join-room-modal" class="modal-overlay hidden">
+            <div class="modal">
+                <h3>加入房间</h3>
+                <p id="join-room-name">房间名称</p>
+                <form id="join-room-form">
+                    <div class="form-group">
+                        <label for="join-password">房间密码</label>
+                        <input type="password" id="join-password" placeholder="请输入密码" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-join">取消</button>
+                        <button type="submit" class="btn btn-primary">加入</button>
+                    </div>
+                </form>
+                <div id="join-error" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- 房间页面 -->
+        <div id="room-page" class="page hidden">
+            <header class="header">
+                <div class="header-left">
+                    <button id="leave-room-btn" class="btn btn-secondary">← 离开房间</button>
+                    <h2 id="room-title">房间名称</h2>
+                    <span id="room-badge" class="badge">房主</span>
+                </div>
+                <div class="header-right">
+                    <div class="room-info">
+                        <span id="member-count">1 人在线</span>
+                    </div>
+                    <span id="current-user">User</span>
+                </div>
+            </header>
+
+            <main class="room-main">
+                <div class="video-section">
+                    <!-- 视频加载输入 -->
+                    <div id="video-input-area" class="video-input-area">
+                        <div class="input-group">
+                            <input type="url" id="video-url-input" placeholder="输入视频URL...">
+                            <button id="load-video-btn" class="btn btn-primary">加载视频</button>
+                        </div>
+                        <p class="hint">支持 MP4、WebM、YouTube、Bilibili 等格式</p>
+                        <div class="video-sources">
+                            <span class="source-tag">MP4</span>
+                            <span class="source-tag">WebM</span>
+                            <span class="source-tag">YouTube</span>
+                            <span class="source-tag">Bilibili</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 房间公告 -->
+                    <div id="room-announcement" class="room-announcement">
+                        <span class="announcement-icon">📢</span>
+                        <span id="announcement-text">暂无公告</span>
+                        <button id="edit-announcement-btn" class="btn btn-text" style="display:none;">编辑</button>
+                    </div>
+                    
+                    <!-- 视频播放器 -->
+                    <div class="video-wrapper">
+                        <video id="video-player" controls>
+                            <source src="" type="video/mp4">
+                            您的浏览器不支持视频播放
+                        </video>
+                        <div id="external-player" class="external-player hidden"></div>
+                        <div id="sync-status" class="sync-status">已同步</div>
+                    </div>
+                    
+                    <!-- 播放控制 -->
+                    <div class="video-controls">
+                        <button id="sync-btn" class="btn btn-secondary">
+                            <span>🔄</span> 同步进度
+                        </button>
+                        <div class="playback-rate">
+                            <label>倍速:</label>
+                            <select id="rate-select">
+                                <option value="0.5">0.5x</option>
+                                <option value="0.75">0.75x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar">
+                    <!-- 成员列表 -->
+                    <div class="members-panel">
+                        <h3>在线成员</h3>
+                        <ul id="members-list">
+                            <!-- 动态填充 -->
+                        </ul>
+                    </div>
+
+                    <!-- 聊天区域 -->
+                    <div class="chat-panel">
+                        <h3>聊天</h3>
+                        <div id="chat-messages" class="chat-messages">
+                            <!-- 动态填充 -->
+                        </div>
+                        <div class="chat-toolbar">
+                            <button id="emoji-btn" class="btn btn-icon" title="表情">😊</button>
+                            <label class="btn btn-icon" title="分享文件" for="file-input">
+                                📎
+                                <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*,.pdf,.txt,.zip">
+                            </label>
+                            <div id="emoji-picker" class="emoji-picker hidden">
+                                <div class="emoji-grid">
+                                    <span class="emoji-item">😀</span><span class="emoji-item">😂</span><span class="emoji-item">🥰</span>
+                                    <span class="emoji-item">😎</span><span class="emoji-item">🤔</span><span class="emoji-item">😭</span>
+                                    <span class="emoji-item">😡</span><span class="emoji-item">🎉</span><span class="emoji-item">👍</span>
+                                    <span class="emoji-item">👎</span><span class="emoji-item">❤️</span><span class="emoji-item">🔥</span>
+                                    <span class="emoji-item">🎬</span><span class="emoji-item">🍿</span><span class="emoji-item">🎵</span>
+                                    <span class="emoji-item">👏</span><span class="emoji-item">🙏</span><span class="emoji-item">💯</span>
+                                    <span class="emoji-item">🌟</span><span class="emoji-item">✨</span><span class="emoji-item">🎮</span>
+                                    <span class="emoji-item">🍕</span><span class="emoji-item">🍺</span><span class="emoji-item">☕</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <input type="text" id="chat-input" placeholder="发送消息...">
+                            <button id="send-btn" class="btn btn-primary">发送</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 房间设置弹窗 -->
+                    <div id="room-settings-modal" class="modal-overlay hidden">
+                        <div class="modal">
+                            <h3>房间设置</h3>
+                            <form id="room-settings-form">
+                                <div class="form-group">
+                                    <label for="settings-announcement">房间公告</label>
+                                    <textarea id="settings-announcement" rows="3" placeholder="输入房间公告..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="settings-public">
+                                        <span>公开房间</span>
+                                    </label>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" id="cancel-settings">取消</button>
+                                    <button type="submit" class="btn btn-primary">保存</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- 文件预览弹窗 -->
+                    <div id="file-preview-modal" class="modal-overlay hidden">
+                        <div class="modal file-preview-modal">
+                            <h3>文件分享</h3>
+                            <div id="file-preview-content"></div>
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-secondary" id="cancel-file-share">取消</button>
+                                <button type="button" class="btn btn-primary" id="confirm-file-share">发送</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="player.js"></script>
+</body>
+</html>

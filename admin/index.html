@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncCinema - 管理后台</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 登录页面 -->
+        <div id="login-page" class="page">
+            <div class="login-container">
+                <div class="logo">
+                    <h1>SyncCinema</h1>
+                    <p>管理后台</p>
+                </div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" placeholder="请输入用户名" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input type="password" id="password" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">登录</button>
+                </form>
+                <div id="login-error" class="error-message"></div>
+                <div class="login-tips">
+                    <p>默认管理员: admin / admin123</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理页面 -->
+        <div id="dashboard-page" class="page hidden">
+            <header class="header">
+                <div class="header-left">
+                    <h1>SyncCinema 管理后台</h1>
+                </div>
+                <div class="header-right">
+                    <span id="admin-name">Admin</span>
+                    <button id="logout-btn" class="btn btn-secondary">退出登录</button>
+                </div>
+            </header>
+
+            <nav class="sidebar">
+                <ul>
+                    <li class="active" data-tab="users">
+                        <span class="icon">👥</span>
+                        <span>用户管理</span>
+                    </li>
+                    <li data-tab="rooms">
+                        <span class="icon">🏠</span>
+                        <span>房间管理</span>
+                    </li>
+                    <li data-tab="stats">
+                        <span class="icon">📊</span>
+                        <span>数据统计</span>
+                    </li>
+                </ul>
+            </nav>
+
+            <main class="main-content">
+                <!-- 用户管理 -->
+                <div id="users-tab" class="tab-content active">
+                    <div class="section-header">
+                        <h2>用户管理</h2>
+                        <div class="search-box">
+                            <input type="text" id="user-search" placeholder="搜索用户...">
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="users-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>用户名</th>
+                                    <th>角色</th>
+                                    <th>状态</th>
+                                    <th>注册时间</th>
+                                    <th>最后登录</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <!-- 动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 房间管理 -->
+                <div id="rooms-tab" class="tab-content">
+                    <div class="section-header">
+                        <h2>房间管理</h2>
+                        <div class="search-box">
+                            <input type="text" id="room-search" placeholder="搜索房间...">
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="rooms-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>房间名</th>
+                                    <th>房主</th>
+                                    <th>类型</th>
+                                    <th>人数</th>
+                                    <th>视频URL</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rooms-tbody">
+                                <!-- 动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 数据统计 -->
+                <div id="stats-tab" class="tab-content">
+                    <div class="section-header">
+                        <h2>数据统计</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">👤</div>
+                            <div class="stat-info">
+                                <h3 id="total-users">0</h3>
+                                <p>总用户数</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🏠</div>
+                            <div class="stat-info">
+                                <h3 id="total-rooms">0</h3>
+                                <p>活跃房间数</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-info">
+                                <h3 id="active-users">0</h3>
+                                <p>正常用户</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🚫</div>
+                            <div class="stat-info">
+                                <h3 id="banned-users">0</h3>
+                                <p>封禁用户</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
