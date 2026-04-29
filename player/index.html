@@ -63,23 +63,40 @@
                     <h1>SyncCinema</h1>
                 </div>
                 <div class="header-right">
-                    <span id="user-name">User</span>
+                    <div class="user-info" id="lobby-user-info">
+                        <img id="lobby-avatar" class="user-avatar-sm" src="" alt="头像" style="display:none;">
+                        <span id="user-name">User</span>
+                    </div>
+                    <button id="profile-btn" class="btn btn-secondary">👤 资料</button>
                     <button id="create-room-btn" class="btn btn-primary">+ 创建房间</button>
                     <button id="logout-btn" class="btn btn-secondary">退出</button>
                 </div>
             </header>
 
             <main class="lobby-main">
-                <div class="lobby-header">
-                    <h2>公开房间</h2>
-                    <div class="search-box">
-                        <input type="text" id="room-search" placeholder="搜索房间...">
+                <!-- 收藏房间 -->
+                <div class="favorites-section" id="favorites-section">
+                    <div class="section-header">
+                        <h3>⭐ 收藏的房间</h3>
+                        <button id="clear-favorites-btn" class="btn btn-text-sm">清空</button>
+                    </div>
+                    <div id="favorites-list" class="favorites-list">
+                        <!-- 动态填充 -->
                     </div>
                 </div>
+                
+                <!-- 最近观看 -->
                 <div class="history-section">
                     <h3>📺 最近观看</h3>
                     <div id="watch-history" class="history-list">
                         <!-- 动态填充 -->
+                    </div>
+                </div>
+                
+                <div class="lobby-header">
+                    <h2>公开房间</h2>
+                    <div class="search-box">
+                        <input type="text" id="room-search" placeholder="搜索房间...">
                     </div>
                 </div>
                 
@@ -106,8 +123,8 @@
                     </div>
                     <div class="form-group">
                         <label for="room-video">视频链接</label>
-                        <input type="url" id="room-video" placeholder="输入视频URL（支持MP4等格式）">
-                        <small class="form-hint">支持 MP4、WebM 等格式的视频链接</small>
+                        <input type="url" id="room-video" placeholder="输入视频URL">
+                        <small class="form-hint">支持 MP4、WebM、YouTube、Bilibili 等格式</small>
                     </div>
                     <div class="form-group">
                         <label class="checkbox-label">
@@ -146,6 +163,89 @@
             </div>
         </div>
 
+        <!-- 个人资料弹窗 -->
+        <div id="profile-modal" class="modal-overlay hidden">
+            <div class="modal">
+                <h3>个人资料</h3>
+                <form id="profile-form">
+                    <div class="form-group avatar-upload">
+                        <label>头像</label>
+                        <div class="avatar-preview-wrapper">
+                            <img id="profile-avatar-preview" class="avatar-preview" src="" alt="头像">
+                            <label for="avatar-input" class="btn btn-secondary avatar-upload-btn">更换头像</label>
+                            <input type="file" id="avatar-input" class="hidden" accept="image/*">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-bio">个性签名</label>
+                        <textarea id="profile-bio" rows="2" placeholder="写点什么介绍自己..."></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-profile">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 定时关闭弹窗 -->
+        <div id="timer-modal" class="modal-overlay hidden">
+            <div class="modal">
+                <h3>⏰ 定时关闭</h3>
+                <form id="timer-form">
+                    <div class="form-group">
+                        <label>设置定时</label>
+                        <div class="timer-presets">
+                            <button type="button" class="timer-preset" data-min="15">15 分钟</button>
+                            <button type="button" class="timer-preset" data-min="30">30 分钟</button>
+                            <button type="button" class="timer-preset" data-min="45">45 分钟</button>
+                            <button type="button" class="timer-preset" data-min="60">60 分钟</button>
+                            <button type="button" class="timer-preset" data-min="90">90 分钟</button>
+                            <button type="button" class="timer-preset" data-min="120">2 小时</button>
+                        </div>
+                        <div class="timer-custom">
+                            <input type="number" id="timer-minutes" min="1" max="480" placeholder="自定义分钟数">
+                            <span>分钟</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="timer-rest-reminder" checked>
+                            <span>每 45 分钟提醒休息</span>
+                        </label>
+                    </div>
+                    <div id="timer-status" class="timer-status hidden">
+                        <span>⏳ 将在 <span id="timer-countdown">--:--</span> 后关闭</span>
+                        <button type="button" class="btn btn-danger btn-sm" id="cancel-timer-btn">取消</button>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-timer-modal">关闭</button>
+                        <button type="submit" class="btn btn-primary">设置</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 播放列表弹窗 -->
+        <div id="playlist-modal" class="modal-overlay hidden">
+            <div class="modal playlist-modal">
+                <h3>🎬 播放列表</h3>
+                <div class="playlist-add">
+                    <div class="input-group">
+                        <input type="url" id="playlist-url-input" placeholder="输入视频URL">
+                        <input type="text" id="playlist-title-input" placeholder="标题（可选）">
+                        <button type="button" id="add-to-playlist-btn" class="btn btn-primary">添加</button>
+                    </div>
+                </div>
+                <div id="playlist-items" class="playlist-items">
+                    <!-- 动态填充 -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="close-playlist-btn">关闭</button>
+                </div>
+            </div>
+        </div>
+
         <!-- 房间页面 -->
         <div id="room-page" class="page hidden">
             <header class="header">
@@ -153,11 +253,17 @@
                     <button id="leave-room-btn" class="btn btn-secondary">← 离开房间</button>
                     <h2 id="room-title">房间名称</h2>
                     <span id="room-badge" class="badge">房主</span>
+                    <button id="favorite-room-btn" class="btn btn-icon" title="收藏房间">⭐</button>
                 </div>
                 <div class="header-right">
                     <div class="room-info">
                         <span id="member-count">1 人在线</span>
                     </div>
+                    <button id="timer-btn" class="btn btn-icon" title="定时关闭">⏰</button>
+                    <button id="playlist-toggle-btn" class="btn btn-icon" title="播放列表">🎬</button>
+                    <button id="danmaku-toggle-btn" class="btn btn-icon active" title="弹幕开关">💬</button>
+                    <button id="voice-btn" class="btn btn-icon" title="语音聊天">🎤</button>
+                    <button id="screen-share-btn" class="btn btn-icon" title="屏幕分享">🖥️</button>
                     <span id="current-user">User</span>
                 </div>
             </header>
@@ -177,6 +283,10 @@
                             <span class="source-tag">YouTube</span>
                             <span class="source-tag">Bilibili</span>
                         </div>
+                        <div class="bilibili-login-hint">
+                            <span>\u9700\u8981\u89C2\u770B Bilibili \u5927\u4F1A\u5458\u6216\u767B\u5F55\u89C6\u9891\uFF1F</span>
+                            <button type="button" id="bilibili-login-btn" class="btn btn-text">\u524D\u5F80 Bilibili \u767B\u5F55</button>
+                        </div>
                     </div>
                     
                     <!-- 房间公告 -->
@@ -187,19 +297,40 @@
                     </div>
                     
                     <!-- 视频播放器 -->
-                    <div class="video-wrapper">
+                    <div class="video-wrapper" id="video-wrapper">
                         <video id="video-player" controls>
                             <source src="" type="video/mp4">
                             您的浏览器不支持视频播放
                         </video>
                         <div id="external-player" class="external-player hidden"></div>
+                        <!-- 弹幕层 -->
+                        <div id="danmaku-layer" class="danmaku-layer"></div>
                         <div id="sync-status" class="sync-status">已同步</div>
+                    </div>
+                    
+                    <!-- 弹幕输入 -->
+                    <div class="danmaku-input-area">
+                        <input type="text" id="danmaku-input" placeholder="发个弹幕吧..." maxlength="100">
+                        <input type="color" id="danmaku-color" value="#ffffff" title="颜色">
+                        <select id="danmaku-position">
+                            <option value="scroll">滚动</option>
+                            <option value="top">顶部</option>
+                            <option value="bottom">底部</option>
+                        </select>
+                        <button id="danmaku-send-btn" class="btn btn-primary">发送</button>
+                        <button id="danmaku-block-btn" class="btn btn-icon" title="屏蔽设置">\u2699\uFE0F</button>
                     </div>
                     
                     <!-- 播放控制 -->
                     <div class="video-controls">
                         <button id="sync-btn" class="btn btn-secondary">
                             <span>🔄</span> 同步进度
+                        </button>
+                        <button id="prev-video-btn" class="btn btn-secondary" title="上一个">
+                            <span>⏮️</span>
+                        </button>
+                        <button id="next-video-btn" class="btn btn-secondary" title="下一个">
+                            <span>⏭️</span>
                         </button>
                         <div class="playback-rate">
                             <label>倍速:</label>
@@ -270,6 +401,12 @@
                                         <span>公开房间</span>
                                     </label>
                                 </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="settings-danmaku" checked>
+                                        <span>允许发送弹幕</span>
+                                    </label>
+                                </div>
                                 <div class="modal-actions">
                                     <button type="button" class="btn btn-secondary" id="cancel-settings">取消</button>
                                     <button type="submit" class="btn btn-primary">保存</button>
@@ -289,8 +426,71 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- 语音通话面板 -->
+                    <div id="voice-panel" class="voice-panel hidden">
+                        <h3>🎤 语音通话</h3>
+                        <div id="voice-members" class="voice-members">
+                            <!-- 动态填充 -->
+                        </div>
+                        <div class="voice-controls">
+                            <button id="voice-mute-btn" class="btn btn-secondary">🎤 静音</button>
+                            <button id="voice-leave-btn" class="btn btn-danger">挂断</button>
+                        </div>
+                    </div>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <!-- 休息提醒弹窗 -->
+    <div id="rest-reminder-modal" class="modal-overlay hidden">
+        <div class="modal rest-modal">
+            <div class="rest-icon">😴</div>
+            <h3>该休息一下了</h3>
+            <p>你已经连续观看很久了，站起来活动一下吧！</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="rest-later-btn">稍后提醒</button>
+                <button type="button" class="btn btn-primary" id="rest-ok-btn">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bilibili 登录引导弹窗 -->
+    <div id="bilibili-login-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>📑 Bilibili 登录</h3>
+            <p style="color:rgba(255,255,255,0.7);margin-bottom:16px;">
+                如果你需要观看 Bilibili 大会员专享或登录限制视频，请先在 Bilibili 官网登录。登录后刷新本页面即可。
+            </p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="cancel-bilibili-login">关闭</button>
+                <button type="button" class="btn btn-primary" id="go-bilibili-login">前往 Bilibili 登录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹幕屏蔽设置弹窗 -->
+    <div id="danmaku-block-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>⚙️ 弹幕屏蔽设置</h3>
+            <div class="form-group">
+                <label for="blocked-keywords">屏蔽关键词</label>
+                <textarea id="blocked-keywords" rows="3" placeholder="使用逗号或中文逗号分隔，如：广告，引流，加群"></textarea>
+                <small class="form-hint">包含这些关键词的弹幕将不会显示</small>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="cancel-danmaku-block">取消</button>
+                <button type="button" class="btn btn-primary" id="save-danmaku-block">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 屏幕分享提示 -->
+    <div id="screen-share-overlay" class="screen-share-overlay hidden">
+        <div class="screen-share-info">
+            <span>🖥️ 正在分享屏幕</span>
+            <button id="stop-screen-share-btn" class="btn btn-danger">停止分享</button>
         </div>
     </div>
 

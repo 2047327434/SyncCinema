@@ -938,6 +938,541 @@ body {
     background: rgba(255, 255, 255, 0.08);
 }
 
+/* ===== 用户头像 ===== */
+.user-avatar-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(102, 126, 234, 0.5);
+    background: rgba(255,255,255,0.1);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.avatar-upload {
+    text-align: center;
+}
+
+.avatar-preview-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(102, 126, 234, 0.5);
+    background: rgba(255,255,255,0.1);
+}
+
+.avatar-upload-btn {
+    font-size: 13px;
+    padding: 6px 14px;
+}
+
+/* ===== 收藏房间 ===== */
+.favorites-section {
+    margin-bottom: 24px;
+}
+
+.favorites-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.favorites-section h3 {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.btn-text-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.4);
+    border: none;
+    cursor: pointer;
+}
+
+.btn-text-sm:hover {
+    color: #ff4757;
+}
+
+.favorites-list {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.favorites-list::-webkit-scrollbar {
+    height: 4px;
+}
+
+.favorites-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.favorite-item {
+    flex-shrink: 0;
+    width: 220px;
+    padding: 14px;
+    background: rgba(255, 215, 0, 0.05);
+    border: 1px solid rgba(255, 215, 0, 0.1);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.favorite-item:hover {
+    background: rgba(255, 215, 0, 0.08);
+    border-color: rgba(255, 215, 0, 0.25);
+}
+
+.favorite-item-name {
+    font-size: 14px;
+    color: #fff;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.favorite-item-host {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.favorite-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+}
+
+.favorite-remove:hover {
+    color: #ff4757;
+}
+
+/* ===== 弹幕层 ===== */
+.danmaku-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 10;
+}
+
+.danmaku-item {
+    position: absolute;
+    white-space: nowrap;
+    font-size: 18px;
+    font-weight: 500;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    pointer-events: none;
+    will-change: transform;
+}
+
+.danmaku-item.scroll {
+    animation: danmaku-scroll 8s linear forwards;
+}
+
+.danmaku-item.top {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: danmaku-fade 4s linear forwards;
+}
+
+.danmaku-item.bottom {
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: danmaku-fade 4s linear forwards;
+}
+
+@keyframes danmaku-scroll {
+    from { transform: translateX(100%); left: 100%; }
+    to { transform: translateX(-100%); left: 0; }
+}
+
+@keyframes danmaku-fade {
+    0% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.danmaku-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    align-items: center;
+}
+
+.danmaku-input-area input[type="text"] {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.danmaku-input-area input[type="color"] {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: none;
+    padding: 2px;
+}
+
+.danmaku-input-area select {
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+}
+
+.danmaku-input-area .btn {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+/* ===== 语音面板 ===== */
+.voice-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 240px;
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 16px;
+    z-index: 200;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.voice-panel h3 {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 12px;
+}
+
+.voice-members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    min-height: 36px;
+}
+
+.voice-member {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(46, 213, 115, 0.15);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #2ed573;
+}
+
+.voice-member.speaking {
+    background: rgba(46, 213, 115, 0.3);
+    animation: voice-pulse 1s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(46, 213, 115, 0); }
+}
+
+.voice-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.voice-controls .btn {
+    flex: 1;
+    font-size: 12px;
+    padding: 8px;
+}
+
+/* ===== 播放列表 ===== */
+.playlist-modal {
+    max-width: 500px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.playlist-add {
+    margin-bottom: 16px;
+}
+
+.playlist-add .input-group {
+    flex-wrap: wrap;
+}
+
+.playlist-add .input-group input[type="url"] {
+    flex: 2;
+    min-width: 200px;
+}
+
+.playlist-add .input-group input[type="text"] {
+    flex: 1;
+    min-width: 100px;
+}
+
+.playlist-items {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.playlist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.playlist-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.playlist-item.active {
+    background: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.playlist-item-index {
+    width: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.playlist-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.playlist-item-title {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-item-url {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playlist-item-remove {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+}
+
+.playlist-item-remove:hover {
+    color: #ff4757;
+}
+
+/* ===== 定时关闭 ===== */
+.timer-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.timer-preset {
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.timer-preset:hover,
+.timer-preset.active {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: #667eea;
+    color: #fff;
+}
+
+.timer-custom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.timer-custom input {
+    width: 80px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    text-align: center;
+}
+
+.timer-custom span {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
+.timer-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(255, 165, 2, 0.08);
+    border: 1px solid rgba(255, 165, 2, 0.15);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+}
+
+.timer-status .btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+/* ===== 休息提醒 ===== */
+.rest-modal {
+    text-align: center;
+    max-width: 360px;
+}
+
+.rest-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.rest-modal h3 {
+    margin-bottom: 8px;
+}
+
+.rest-modal p {
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 24px;
+}
+
+/* ===== 屏幕分享覆盖层 ===== */
+.screen-share-overlay {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    background: rgba(255, 71, 87, 0.9);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: center;
+    z-index: 150;
+}
+
+.screen-share-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: #fff;
+    font-weight: 500;
+}
+
+.screen-share-info .btn {
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+/* 按钮激活状态 */
+.btn-icon.active {
+    background: rgba(102, 126, 234, 0.3);
+    border-color: #667eea;
+    color: #fff;
+}
+
+/* ===== 成员头像 ===== */
+.member-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255,255,255,0.1);
+}
+
+/* Bilibili 登录提示 */
+.bilibili-login-hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(0, 161, 214, 0.08);
+    border: 1px solid rgba(0, 161, 214, 0.15);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+}
+
+.bilibili-login-hint .btn-text {
+    color: #00a1d6;
+    border-color: rgba(0, 161, 214, 0.3);
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
 /* 移动端汉堡菜单 */
 .mobile-menu-btn {
     display: none;

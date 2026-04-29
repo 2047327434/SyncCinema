@@ -1,4 +1,5 @@
 const API_URL = window.location.origin;
+const ADMIN_KEY = 'admin123';
 
 // 状态管理
 let currentAdmin = null;
@@ -13,15 +14,27 @@ const loginError = document.getElementById('login-error');
 const logoutBtn = document.getElementById('logout-btn');
 const adminName = document.getElementById('admin-name');
 
+// 安全工具
+function escapeHtml(text) {
+    if (text == null) return '';
+    const str = String(text);
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML
+        .replace(/'/g, '&#39;')
+        .replace(/"/g, '&quot;');
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupEventListeners();
+    setupDelegatedEvents();
 });
 
 // 检查认证状态
 function checkAuth() {
-    const saved = localStorage.getItem('vt_admin');
+    const saved = localStorage.getItem('sc_admin');
     if (saved) {
         try {
             currentAdmin = JSON.parse(saved);
@@ -29,7 +42,7 @@ function checkAuth() {
                 showDashboard();
                 loadData();
             } else {
-                localStorage.removeItem('vt_admin');
+                localStorage.removeItem('sc_admin');
                 showLogin();
             }
         } catch (e) {
@@ -42,18 +55,15 @@ function checkAuth() {
 
 // 设置事件监听
 function setupEventListeners() {
-    // 登录表单
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('username').value;
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
         await login(username, password);
     });
 
-    // 退出登录
     logoutBtn.addEventListener('click', logout);
 
-    // 标签切换
     document.querySelectorAll('.sidebar li').forEach(item => {
         item.addEventListener('click', () => {
             const tab = item.dataset.tab;
@@ -61,13 +71,36 @@ function setupEventListeners() {
         });
     });
 
-    // 搜索
     document.getElementById('user-search').addEventListener('input', (e) => {
         filterUsers(e.target.value);
     });
 
     document.getElementById('room-search').addEventListener('input', (e) => {
         filterRooms(e.target.value);
+    });
+}
+
+// 事件委托（替代 onclick）
+function setupDelegatedEvents() {
+    document.addEventListener('click', (e) => {
+        const banBtn = e.target.closest('[data-ban-user]');
+        if (banBtn) {
+            const userId = banBtn.dataset.banUser;
+            const currentStatus = banBtn.dataset.currentStatus;
+            toggleUserStatus(userId, currentStatus);
+        }
+
+        const delUserBtn = e.target.closest('[data-delete-user]');
+        if (delUserBtn) {
+            const userId = delUserBtn.dataset.deleteUser;
+            deleteUser(userId);
+        }
+
+        const delRoomBtn = e.target.closest('[data-delete-room]');
+        if (delRoomBtn) {
+            const roomId = delRoomBtn.dataset.deleteRoom;
+            deleteRoom(roomId);
+        }
     });
 }
 
@@ -88,7 +121,7 @@ async function login(username, password) {
                 return;
             }
             currentAdmin = data.user;
-            localStorage.setItem('vt_admin', JSON.stringify(currentAdmin));
+            localStorage.setItem('sc_admin', JSON.stringify(currentAdmin));
             showDashboard();
             loadData();
         } else {
@@ -103,7 +136,7 @@ async function login(username, password) {
 // 退出登录
 function logout() {
     currentAdmin = null;
-    localStorage.removeItem('vt_admin');
+    localStorage.removeItem('sc_admin');
     showLogin();
 }
 
@@ -124,17 +157,14 @@ function showDashboard() {
 
 // 切换标签
 function switchTab(tab) {
-    // 更新侧边栏
     document.querySelectorAll('.sidebar li').forEach(item => {
         item.classList.toggle('active', item.dataset.tab === tab);
     });
 
-    // 更新内容
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.toggle('active', content.id === `${tab}-tab`);
     });
 
-    // 加载数据
     if (tab === 'users') {
         loadUsers();
     } else if (tab === 'rooms') {
@@ -153,12 +183,14 @@ async function loadData() {
 // 加载用户列表
 async function loadUsers() {
     try {
-        const response = await fetch(`${API_URL}/api/users`);
+        const response = await fetch(`${API_URL}/api/users?adminKey=${encodeURIComponent(ADMIN_KEY)}`);
         const data = await response.json();
-        
+
         if (data.success) {
             users = data.users;
             renderUsers(users);
+        } else {
+            console.error('加载用户失败:', data.message);
         }
     } catch (error) {
         console.error('加载用户失败:', error);
@@ -168,7 +200,7 @@ async function loadUsers() {
 // 渲染用户列表
 function renderUsers(userList) {
     const tbody = document.getElementById('users-tbody');
-    
+
     if (userList.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -181,29 +213,36 @@ function renderUsers(userList) {
         return;
     }
 
-    tbody.innerHTML = userList.map(user => `
-        <tr>
-            <td>${user.id.substring(0, 8)}...</td>
-            <td>${user.username}</td>
-            <td><span class="status-badge ${user.role === 'admin' ? 'role-admin' : 'role-user'}">${user.role === 'admin' ? '管理员' : '用户'}</span></td>
-            <td><span class="status-badge ${user.status === 'active' ? 'status-active' : 'status-banned'}">${user.status === 'active' ? '正常' : '封禁'}</span></td>
-            <td>${formatDate(user.createdAt)}</td>
-            <td>${user.lastLogin ? formatDate(user.lastLogin) : '从未登录'}</td>
-            <td>
-                <div class="actions">
-                    ${user.role !== 'admin' ? `
-                        <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'}" 
-                                onclick="toggleUserStatus('${user.id}', '${user.status}')">
-                            ${user.status === 'active' ? '封禁' : '解封'}
-                        </button>
-                        <button class="btn btn-danger" onclick="deleteUser('${user.id}')">
-                            删除
-                        </button>
-                    ` : '<span style="color: #999; font-size: 12px;">不可操作</span>'}
-                </div>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = userList.map(user => {
+        const isAdmin = user.role === 'admin';
+        const actionButtons = isAdmin
+            ? '<span style="color: #999; font-size: 12px;">不可操作</span>'
+            : `
+                <button class="btn ${user.status === 'active' ? 'btn-warning' : 'btn-success'}"
+                        data-ban-user="${escapeHtml(user.id)}"
+                        data-current-status="${escapeHtml(user.status)}">
+                    ${user.status === 'active' ? '封禁' : '解封'}
+                </button>
+                <button class="btn btn-danger" data-delete-user="${escapeHtml(user.id)}">
+                    删除
+                </button>
+            `;
+        return `
+            <tr>
+                <td>${escapeHtml(user.id.substring(0, 8))}...</td>
+                <td>${escapeHtml(user.username)}</td>
+                <td><span class="status-badge ${isAdmin ? 'role-admin' : 'role-user'}">${isAdmin ? '管理员' : '用户'}</span></td>
+                <td><span class="status-badge ${user.status === 'active' ? 'status-active' : 'status-banned'}">${user.status === 'active' ? '正常' : '封禁'}</span></td>
+                <td>${formatDate(user.createdAt)}</td>
+                <td>${user.lastLogin ? formatDate(user.lastLogin) : '从未登录'}</td>
+                <td>
+                    <div class="actions">
+                        ${actionButtons}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // 加载房间列表
@@ -211,7 +250,7 @@ async function loadRooms() {
     try {
         const response = await fetch(`${API_URL}/api/rooms`);
         const data = await response.json();
-        
+
         if (data.success) {
             rooms = data.rooms;
             renderRooms(rooms);
@@ -224,7 +263,7 @@ async function loadRooms() {
 // 渲染房间列表
 function renderRooms(roomList) {
     const tbody = document.getElementById('rooms-tbody');
-    
+
     if (roomList.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -239,16 +278,16 @@ function renderRooms(roomList) {
 
     tbody.innerHTML = roomList.map(room => `
         <tr>
-            <td>${room.id.substring(0, 8)}...</td>
-            <td>${room.name}</td>
-            <td>${room.host}</td>
+            <td>${escapeHtml(room.id.substring(0, 8))}...</td>
+            <td>${escapeHtml(room.name)}</td>
+            <td>${escapeHtml(room.host)}</td>
             <td><span class="status-badge ${room.isPublic ? 'status-active' : 'status-banned'}">${room.isPublic ? '公开' : '私密'}</span></td>
             <td>${room.memberCount}</td>
-            <td>${room.videoUrl ? room.videoUrl.substring(0, 30) + '...' : '无'}</td>
+            <td>${room.videoUrl ? escapeHtml(room.videoUrl.substring(0, 30)) + '...' : '无'}</td>
             <td>${formatDate(room.createdAt)}</td>
             <td>
                 <div class="actions">
-                    <button class="btn btn-danger" onclick="deleteRoom('${room.id}')">
+                    <button class="btn btn-danger" data-delete-room="${escapeHtml(room.id)}">
                         删除
                     </button>
                 </div>
@@ -267,7 +306,7 @@ function loadStats() {
 
 // 过滤用户
 function filterUsers(query) {
-    const filtered = users.filter(u => 
+    const filtered = users.filter(u =>
         u.username.toLowerCase().includes(query.toLowerCase()) ||
         u.id.includes(query)
     );
@@ -276,7 +315,7 @@ function filterUsers(query) {
 
 // 过滤房间
 function filterRooms(query) {
-    const filtered = rooms.filter(r => 
+    const filtered = rooms.filter(r =>
         r.name.toLowerCase().includes(query.toLowerCase()) ||
         r.host.toLowerCase().includes(query.toLowerCase()) ||
         r.id.includes(query)
@@ -288,11 +327,11 @@ function filterRooms(query) {
 async function toggleUserStatus(userId, currentStatus) {
     const newStatus = currentStatus === 'active' ? 'banned' : 'active';
     const action = newStatus === 'banned' ? '封禁' : '解封';
-    
+
     if (!confirm(`确定要${action}该用户吗？`)) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/users/${userId}/status`, {
+        const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/status?adminKey=${encodeURIComponent(ADMIN_KEY)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
@@ -302,6 +341,8 @@ async function toggleUserStatus(userId, currentStatus) {
         if (data.success) {
             loadUsers();
             loadStats();
+        } else {
+            alert(data.message || '操作失败');
         }
     } catch (error) {
         console.error('操作失败:', error);
@@ -314,7 +355,7 @@ async function deleteUser(userId) {
     if (!confirm('确定要删除该用户吗？此操作不可恢复！')) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+        const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}?adminKey=${encodeURIComponent(ADMIN_KEY)}`, {
             method: 'DELETE'
         });
 
@@ -322,6 +363,8 @@ async function deleteUser(userId) {
         if (data.success) {
             loadUsers();
             loadStats();
+        } else {
+            alert(data.message || '删除失败');
         }
     } catch (error) {
         console.error('删除失败:', error);
@@ -334,7 +377,7 @@ async function deleteRoom(roomId) {
     if (!confirm('确定要删除该房间吗？')) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/rooms/${roomId}`, {
+        const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}?adminKey=${encodeURIComponent(ADMIN_KEY)}`, {
             method: 'DELETE'
         });
 
@@ -342,6 +385,8 @@ async function deleteRoom(roomId) {
         if (data.success) {
             loadRooms();
             loadStats();
+        } else {
+            alert(data.message || '删除失败');
         }
     } catch (error) {
         console.error('删除失败:', error);
