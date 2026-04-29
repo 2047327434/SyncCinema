@@ -1,8 +1,8 @@
 const API_URL = window.location.origin;
-const ADMIN_KEY = 'admin123';
 
 // 状态管理
 let currentAdmin = null;
+let authToken = null;
 let users = [];
 let rooms = [];
 
@@ -34,19 +34,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 检查认证状态
 function checkAuth() {
-    const saved = localStorage.getItem('sc_admin');
-    if (saved) {
+    const savedToken = localStorage.getItem('sc_admin_token');
+    const savedUser = localStorage.getItem('sc_admin');
+    if (savedToken && savedUser) {
         try {
-            currentAdmin = JSON.parse(saved);
+            currentAdmin = JSON.parse(savedUser);
+            authToken = savedToken;
             if (currentAdmin.role === 'admin') {
                 showDashboard();
                 loadData();
             } else {
-                localStorage.removeItem('sc_admin');
-                showLogin();
+                logout();
             }
         } catch (e) {
-            showLogin();
+            logout();
         }
     } else {
         showLogin();
@@ -104,6 +105,21 @@ function setupDelegatedEvents() {
     });
 }
 
+// 封装带 Token 的请求
+async function apiFetch(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+        ...(options.headers || {})
+    };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('认证已过期，请重新登录');
+    }
+    return response;
+}
+
 // 登录
 async function login(username, password) {
     try {
@@ -121,7 +137,9 @@ async function login(username, password) {
                 return;
             }
             currentAdmin = data.user;
+            authToken = data.token;
             localStorage.setItem('sc_admin', JSON.stringify(currentAdmin));
+            localStorage.setItem('sc_admin_token', authToken);
             showDashboard();
             loadData();
         } else {
@@ -136,7 +154,9 @@ async function login(username, password) {
 // 退出登录
 function logout() {
     currentAdmin = null;
+    authToken = null;
     localStorage.removeItem('sc_admin');
+    localStorage.removeItem('sc_admin_token');
     showLogin();
 }
 
@@ -183,7 +203,7 @@ async function loadData() {
 // 加载用户列表
 async function loadUsers() {
     try {
-        const response = await fetch(`${API_URL}/api/users?adminKey=${encodeURIComponent(ADMIN_KEY)}`);
+        const response = await apiFetch(`${API_URL}/api/users`);
         const data = await response.json();
 
         if (data.success) {
@@ -331,7 +351,7 @@ async function toggleUserStatus(userId, currentStatus) {
     if (!confirm(`确定要${action}该用户吗？`)) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/status?adminKey=${encodeURIComponent(ADMIN_KEY)}`, {
+        const response = await apiFetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
@@ -355,7 +375,7 @@ async function deleteUser(userId) {
     if (!confirm('确定要删除该用户吗？此操作不可恢复！')) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}?adminKey=${encodeURIComponent(ADMIN_KEY)}`, {
+        const response = await apiFetch(`${API_URL}/api/users/${encodeURIComponent(userId)}`, {
             method: 'DELETE'
         });
 
@@ -377,7 +397,7 @@ async function deleteRoom(roomId) {
     if (!confirm('确定要删除该房间吗？')) return;
 
     try {
-        const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}?adminKey=${encodeURIComponent(ADMIN_KEY)}`, {
+        const response = await apiFetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}`, {
             method: 'DELETE'
         });
 

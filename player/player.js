@@ -34,6 +34,14 @@ let lastRestTime = Date.now();
 // 屏幕分享
 let screenShareStream = null;
 
+// JWT Token
+let authToken = null;
+
+// 私聊
+let privateChatOpen = false;
+let privateChatTarget = null;
+let privateChatMessages = [];
+
 // DOM 元素缓存
 const authPage = document.getElementById('auth-page');
 const lobbyPage = document.getElementById('lobby-page');
@@ -47,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     setupEventListeners();
     setupDelegatedEventListeners();
+    setupPrivateChatListeners();
     startRestReminder();
 });
 
@@ -99,6 +108,21 @@ function isValidHexColor(color) {
     return typeof color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
+// ===== API 请求封装（自动携带 JWT Token）=====
+async function apiFetch(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+        ...(options.headers || {})
+    };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('认证已过期，请重新登录');
+    }
+    return response;
+}
+
 // ===== 本地存储管理 =====
 function loadWatchHistory() {
     const saved = localStorage.getItem('sc_watch_history');
@@ -120,10 +144,9 @@ function loadFavorites() {
 
 function saveFavorites() {
     localStorage.setItem('sc_favorites', JSON.stringify(favorites));
-    if (currentUser?.id) {
-        fetch(`${API_URL}/api/users/${encodeURIComponent(currentUser.id)}/favorites`, {
+    if (currentUser?.id && authToken) {
+        apiFetch(`${API_URL}/api/users/${encodeURIComponent(currentUser.id)}/favorites`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ favorites })
         }).catch(() => {});
     }
@@ -337,9 +360,11 @@ function loadVideo(url) {
 // ===== 认证 =====
 function checkAuth() {
     const saved = localStorage.getItem('sc_user');
-    if (saved) {
+    const savedToken = localStorage.getItem('sc_token');
+    if (saved && savedToken) {
         try {
             currentUser = JSON.parse(saved);
+            authToken = savedToken;
             if (currentUser.favorites) favorites = currentUser.favorites;
             connectSocket();
             showLobby();
@@ -357,7 +382,11 @@ function connectSocket() {
     socket.on('connect', () => {
         console.log('Socket 已连接');
         if (currentUser) {
-            socket.emit('auth', { userId: currentUser.id, username: currentUser.username });
+            socket.emit('auth', {
+                userId: currentUser.id,
+                username: currentUser.username,
+                token: authToken
+            });
         }
     });
 
@@ -543,6 +572,24 @@ function connectSocket() {
 
     socket.on('share-error', ({ message }) => {
         alert(message);
+    });
+
+    // 私聊
+    socket.on('private-message-received', (msg) => {
+        if (privateChatOpen && privateChatTarget && msg.from === privateChatTarget.id) {
+            privateChatMessages.push(msg);
+            renderPrivateChat();
+            socket.emit('private-message-read', { fromUserId: msg.from });
+        } else {
+            showPrivateMessageNotification(msg);
+        }
+    });
+
+    socket.on('private-message-sent', (msg) => {
+        if (privateChatOpen && privateChatTarget) {
+            privateChatMessages.push(msg);
+            renderPrivateChat();
+        }
     });
 }
 
@@ -1190,6 +1237,16 @@ function setupEventListeners() {
     document.getElementById('danmaku-block-btn')?.addEventListener('click', openDanmakuBlockModal);
     document.getElementById('cancel-danmaku-block')?.addEventListener('click', closeDanmakuBlockModal);
     document.getElementById('save-danmaku-block')?.addEventListener('click', saveBlockedKeywords);
+
+    // 私聊
+    document.getElementById('close-private-chat')?.addEventListener('click', closePrivateChat);
+    document.getElementById('private-chat-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        sendPrivateMessage();
+    });
+    document.getElementById('private-chat-input')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendPrivateMessage();
+    });
 }
 
 // ===== 事件委托（替代 onclick） =====
@@ -1387,9 +1444,8 @@ async function saveProfile() {
     const bio = document.getElementById('profile-bio').value;
 
     try {
-        const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(currentUser.id)}/profile`, {
+        const response = await apiFetch(`${API_URL}/api/users/${encodeURIComponent(currentUser.id)}/profile`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ avatar: avatarBase64, bio })
         });
         const data = await response.json();
@@ -1457,8 +1513,10 @@ async function login(username, password) {
         const data = await response.json();
         if (data.success) {
             currentUser = data.user;
+            authToken = data.token;
             if (data.user.favorites) favorites = data.user.favorites;
             localStorage.setItem('sc_user', JSON.stringify(currentUser));
+            localStorage.setItem('sc_token', authToken);
             connectSocket();
             showLobby();
             updateUserAvatarUI();
@@ -1500,8 +1558,10 @@ function logout() {
     stopScreenShare();
     cancelTimer();
     currentUser = null;
+    authToken = null;
     currentRoom = null;
     localStorage.removeItem('sc_user');
+    localStorage.removeItem('sc_token');
     showAuth();
 }
 
@@ -1631,7 +1691,7 @@ function addSystemMessage(text) {
 function updateMembersList() {
     const list = document.getElementById('members-list');
     list.innerHTML = members.map(member => `
-        <li class="${member === currentRoom?.host ? 'host' : ''}">
+        <li class="member-item ${member === currentRoom?.host ? 'host' : ''}" data-username="${escapeHtml(member)}">
             ${escapeHtml(member)} ${member === currentRoom?.host ? '(房主)' : ''}
         </li>
     `).join('');
@@ -1757,4 +1817,93 @@ function formatFileSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ===== 私聊功能 =====
+
+function openPrivateChat(targetUsername) {
+    if (!currentUser || targetUsername === currentUser.username) return;
+    privateChatTarget = { id: null, username: targetUsername };
+    privateChatOpen = true;
+    privateChatMessages = [];
+    document.getElementById('private-chat-modal').classList.remove('hidden');
+    document.getElementById('private-chat-title').textContent = `私聊: ${targetUsername}`;
+    document.getElementById('private-chat-messages').innerHTML = '';
+    loadPrivateChatHistory(targetUsername);
+}
+
+function closePrivateChat() {
+    privateChatOpen = false;
+    privateChatTarget = null;
+    privateChatMessages = [];
+    document.getElementById('private-chat-modal').classList.add('hidden');
+}
+
+async function loadPrivateChatHistory(targetUsername) {
+    if (!authToken) return;
+    // 通过用户名查找用户 ID（简化：使用 members 列表）
+    // 实际应通过 API 获取用户 ID，这里简化处理
+}
+
+function sendPrivateMessage() {
+    const input = document.getElementById('private-chat-input');
+    const text = input.value.trim();
+    if (!text || !socket || !privateChatTarget) return;
+    if (text.length > 1000) {
+        alert('消息不能超过1000字');
+        return;
+    }
+
+    socket.emit('private-message', {
+        toUserId: privateChatTarget.username, // 简化：使用 username 作为 ID
+        message: text,
+        fromUsername: currentUser.username
+    });
+
+    input.value = '';
+}
+
+function renderPrivateChat() {
+    const container = document.getElementById('private-chat-messages');
+    if (!container) return;
+    container.innerHTML = privateChatMessages.map(msg => {
+        const isSelf = msg.from === currentUser?.id || msg.fromUsername === currentUser?.username;
+        return `
+            <div class="private-msg ${isSelf ? 'self' : 'other'}">
+                <div class="private-msg-sender">${escapeHtml(msg.fromUsername)}</div>
+                <div class="private-msg-content">${escapeHtml(msg.message)}</div>
+                <div class="private-msg-time">${formatTime(msg.timestamp)}</div>
+            </div>
+        `;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+function showPrivateMessageNotification(msg) {
+    // 显示一个简单的通知
+    const notification = document.createElement('div');
+    notification.className = 'private-notification';
+    notification.innerHTML = `
+        <strong>${escapeHtml(msg.fromUsername)}</strong>: ${escapeHtml(msg.message.substring(0, 30))}${msg.message.length > 30 ? '...' : ''}
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 500);
+    }, 3000);
+}
+
+// 点击成员列表中的用户头像或用户名打开私聊
+function setupPrivateChatListeners() {
+    const membersList = document.getElementById('members-list');
+    if (!membersList) return;
+    membersList.addEventListener('click', (e) => {
+        const memberEl = e.target.closest('.member-item');
+        if (memberEl) {
+            const username = memberEl.dataset.username;
+            if (username && username !== currentUser?.username) {
+                openPrivateChat(username);
+            }
+        }
+    });
 }

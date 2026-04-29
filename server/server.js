@@ -2,10 +2,11 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
-const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const { db, JWT_SECRET } = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,25 +18,16 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 3001;
-const DATA_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
 
-// 确保数据目录存在
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// 数据存储
-let users = [];
+// 内存中的房间数据（用于实时状态，会从 db 加载）
 let rooms = [];
 let socketToUser = new Map();
 let socketToRoom = new Map();
 
-// 简单内存 Rate Limiting
-const rateLimits = new Map(); // ip -> { count, resetTime }
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1分钟
-const RATE_LIMIT_MAX = 60; // 每分钟最多60次请求
+// Rate Limiting
+const rateLimits = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000;
+const RATE_LIMIT_MAX = 60;
 
 function checkRateLimit(ip) {
     const now = Date.now();
@@ -44,66 +36,12 @@ function checkRateLimit(ip) {
         rateLimits.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
         return true;
     }
-    if (record.count >= RATE_LIMIT_MAX) {
-        return false;
-    }
+    if (record.count >= RATE_LIMIT_MAX) return false;
     record.count++;
     return true;
 }
 
-// 加载数据
-function loadData() {
-    try {
-        if (fs.existsSync(USERS_FILE)) {
-            users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-        }
-        if (fs.existsSync(ROOMS_FILE)) {
-            rooms = JSON.parse(fs.readFileSync(ROOMS_FILE, 'utf8'));
-        }
-    } catch (error) {
-        console.error('加载数据失败:', error);
-        users = [];
-        rooms = [];
-    }
-}
-
-// 保存数据（使用临时文件避免写入中断导致数据损坏）
-function saveData() {
-    try {
-        const usersTemp = USERS_FILE + '.tmp';
-        const roomsTemp = ROOMS_FILE + '.tmp';
-        fs.writeFileSync(usersTemp, JSON.stringify(users, null, 2));
-        fs.writeFileSync(roomsTemp, JSON.stringify(rooms, null, 2));
-        fs.renameSync(usersTemp, USERS_FILE);
-        fs.renameSync(roomsTemp, ROOMS_FILE);
-    } catch (error) {
-        console.error('保存数据失败:', error);
-    }
-}
-
-// 初始化默认管理员账号
-function initDefaultAdmin() {
-    const adminExists = users.find(u => u.username === 'admin');
-    if (!adminExists) {
-        const adminUser = {
-            id: uuidv4(),
-            username: 'admin',
-            password: bcrypt.hashSync('admin123', 10),
-            role: 'admin',
-            status: 'active',
-            avatar: null,
-            bio: '',
-            favorites: [],
-            createdAt: new Date().toISOString(),
-            lastLogin: null
-        };
-        users.push(adminUser);
-        saveData();
-        console.log('默认管理员账号已创建: admin / admin123');
-    }
-}
-
-// 输入验证函数
+// 输入验证
 function validateUsername(username) {
     if (typeof username !== 'string') return false;
     if (username.length < 2 || username.length > 20) return false;
@@ -129,12 +67,51 @@ function isValidHttpUrl(url) {
     }
 }
 
-// 中间件
+// ===== JWT 中间件 =====
+
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+
+    if (!token) {
+        return res.status(401).json({ success: false, message: '未提供访问令牌' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ success: false, message: '令牌无效或已过期' });
+        }
+        req.user = user;
+        next();
+    });
+}
+
+function requireAdmin(req, res, next) {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: '需要管理员权限' });
+    }
+    next();
+}
+
+// 生成 JWT Token
+function generateToken(user) {
+    return jwt.sign(
+        {
+            id: user.id,
+            username: user.username,
+            role: user.role
+        },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+}
+
+// ===== Express 中间件 =====
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '..')));
 
-// Rate Limiting 中间件
 app.use((req, res, next) => {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
     if (!checkRateLimit(ip)) {
@@ -142,6 +119,38 @@ app.use((req, res, next) => {
     }
     next();
 });
+
+// ===== 初始化 =====
+
+async function initDefaultAdmin() {
+    const adminExists = await db.findOne('users', { username: 'admin' });
+    if (!adminExists) {
+        const adminUser = {
+            id: uuidv4(),
+            username: 'admin',
+            password: bcrypt.hashSync('admin123', 10),
+            role: 'admin',
+            status: 'active',
+            avatar: null,
+            bio: '',
+            favorites: [],
+            createdAt: new Date().toISOString(),
+            lastLogin: null
+        };
+        await db.insert('users', adminUser);
+        console.log('默认管理员账号已创建: admin / admin123');
+    }
+}
+
+async function loadRoomsFromDB() {
+    rooms = await db.find('rooms', {});
+    // 清理已不存在的 socket 成员
+    rooms.forEach(room => {
+        if (!room.members) room.members = [];
+        if (!room.messages) room.messages = [];
+        if (!room.playlist) room.playlist = [];
+    });
+}
 
 // ===== API 路由 =====
 
@@ -156,7 +165,8 @@ app.post('/api/register', async (req, res) => {
         return res.status(400).json({ success: false, message: '密码长度至少4位' });
     }
 
-    if (users.find(u => u.username === username)) {
+    const existing = await db.findOne('users', { username });
+    if (existing) {
         return res.status(400).json({ success: false, message: '用户名已存在' });
     }
 
@@ -174,17 +184,16 @@ app.post('/api/register', async (req, res) => {
         lastLogin: null
     };
 
-    users.push(newUser);
-    saveData();
+    await db.insert('users', newUser);
 
     res.json({ success: true, message: '注册成功', user: { id: newUser.id, username: newUser.username } });
 });
 
-// 用户登录
+// 用户登录（返回 JWT Token）
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
 
-    const user = users.find(u => u.username === username);
+    const user = await db.findOne('users', { username });
     if (!user) {
         return res.status(400).json({ success: false, message: '用户不存在' });
     }
@@ -199,10 +208,13 @@ app.post('/api/login', async (req, res) => {
     }
 
     user.lastLogin = new Date().toISOString();
-    saveData();
+    await db.updateById('users', user.id, { lastLogin: user.lastLogin });
+
+    const token = generateToken(user);
 
     res.json({
         success: true,
+        token,
         user: {
             id: user.id,
             username: user.username,
@@ -214,10 +226,19 @@ app.post('/api/login', async (req, res) => {
     });
 });
 
-// 获取用户信息
-app.get('/api/users/me', (req, res) => {
-    const { userId } = req.query;
-    const user = users.find(u => u.id === userId);
+// 刷新 Token
+app.post('/api/refresh-token', authenticateToken, async (req, res) => {
+    const user = await db.findById('users', req.user.id);
+    if (!user || user.status === 'banned') {
+        return res.status(403).json({ success: false, message: '用户不存在或已被封禁' });
+    }
+    const token = generateToken(user);
+    res.json({ success: true, token });
+});
+
+// 获取当前用户信息（需要 JWT）
+app.get('/api/users/me', authenticateToken, async (req, res) => {
+    const user = await db.findById('users', req.user.id);
     if (!user) {
         return res.status(404).json({ success: false, message: '用户不存在' });
     }
@@ -235,33 +256,42 @@ app.get('/api/users/me', (req, res) => {
 });
 
 // 更新用户资料（只能修改自己的资料）
-app.put('/api/users/:id/profile', (req, res) => {
+app.put('/api/users/:id/profile', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { avatar, bio } = req.body;
-    // 简化版： trusting client-provided user identity for now; in production use JWT/session
-    // 但至少验证 avatar 大小
+
+    // 只能修改自己的资料
+    if (req.user.id !== id && req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: '无权修改他人资料' });
+    }
+
     if (avatar && typeof avatar === 'string' && avatar.length > 3 * 1024 * 1024) {
         return res.status(400).json({ success: false, message: '头像大小不能超过 3MB' });
     }
 
-    const user = users.find(u => u.id === id);
+    const user = await db.findById('users', id);
     if (!user) {
         return res.status(404).json({ success: false, message: '用户不存在' });
     }
 
-    if (avatar !== undefined) user.avatar = avatar;
-    if (bio !== undefined) user.bio = sanitizeString(bio, 200);
+    const updates = {};
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (bio !== undefined) updates.bio = sanitizeString(bio, 200);
 
-    saveData();
-    res.json({ success: true, message: '资料已更新', user: { id: user.id, avatar: user.avatar, bio: user.bio } });
+    await db.updateById('users', id, updates);
+    res.json({ success: true, message: '资料已更新', user: { id, ...updates } });
 });
 
-// 更新用户收藏（只能修改自己的收藏）
-app.put('/api/users/:id/favorites', (req, res) => {
+// 更新用户收藏
+app.put('/api/users/:id/favorites', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { favorites } = req.body;
 
-    const user = users.find(u => u.id === id);
+    if (req.user.id !== id && req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: '无权修改他人收藏' });
+    }
+
+    const user = await db.findById('users', id);
     if (!user) {
         return res.status(404).json({ success: false, message: '用户不存在' });
     }
@@ -269,20 +299,17 @@ app.put('/api/users/:id/favorites', (req, res) => {
     if (!Array.isArray(favorites)) {
         return res.status(400).json({ success: false, message: '收藏格式错误' });
     }
-    // 限制收藏数量
-    user.favorites = favorites.slice(0, 100);
-    saveData();
-    res.json({ success: true, message: '收藏已更新', favorites: user.favorites });
+
+    await db.updateById('users', id, { favorites: favorites.slice(0, 100) });
+    res.json({ success: true, message: '收藏已更新', favorites: favorites.slice(0, 100) });
 });
 
-// 获取所有用户（管理员接口 - 添加简单校验）
-app.get('/api/users', (req, res) => {
-    const { adminKey } = req.query;
-    // 简化版管理员校验：通过 adminKey 参数（实际生产环境应使用 JWT/session）
-    if (adminKey !== 'admin123') {
-        return res.status(403).json({ success: false, message: '无权限访问' });
-    }
-    const userList = users.map(u => ({
+// ===== 管理员 API（全部需要 JWT + admin 角色）=====
+
+// 获取所有用户
+app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+    const allUsers = await db.find('users', {});
+    const userList = allUsers.map(u => ({
         id: u.id,
         username: u.username,
         role: u.role,
@@ -295,29 +322,19 @@ app.get('/api/users', (req, res) => {
     res.json({ success: true, users: userList });
 });
 
-// 删除用户（管理员接口）
-app.delete('/api/users/:id', (req, res) => {
-    const { adminKey } = req.query;
-    if (adminKey !== 'admin123') {
-        return res.status(403).json({ success: false, message: '无权限访问' });
-    }
+// 删除用户
+app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const index = users.findIndex(u => u.id === id);
-    if (index === -1) {
+    const user = await db.findById('users', id);
+    if (!user) {
         return res.status(404).json({ success: false, message: '用户不存在' });
     }
-
-    users.splice(index, 1);
-    saveData();
+    await db.deleteById('users', id);
     res.json({ success: true, message: '用户已删除' });
 });
 
-// 封禁/解封用户（管理员接口）
-app.put('/api/users/:id/status', (req, res) => {
-    const { adminKey } = req.query;
-    if (adminKey !== 'admin123') {
-        return res.status(403).json({ success: false, message: '无权限访问' });
-    }
+// 封禁/解封用户
+app.put('/api/users/:id/status', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
@@ -325,56 +342,90 @@ app.put('/api/users/:id/status', (req, res) => {
         return res.status(400).json({ success: false, message: '无效的状态值' });
     }
 
-    const user = users.find(u => u.id === id);
+    const user = await db.findById('users', id);
     if (!user) {
         return res.status(404).json({ success: false, message: '用户不存在' });
     }
 
-    user.status = status;
-    saveData();
+    await db.updateById('users', id, { status });
     res.json({ success: true, message: `用户已${status === 'banned' ? '封禁' : '解封'}` });
 });
 
 // 获取所有房间
-app.get('/api/rooms', (req, res) => {
+app.get('/api/rooms', async (req, res) => {
     const roomList = rooms.map(r => ({
         id: r.id,
         name: r.name,
         host: r.host,
         isPublic: r.isPublic,
-        memberCount: r.members.length,
+        memberCount: r.members ? r.members.length : 0,
         videoUrl: r.videoUrl,
         createdAt: r.createdAt
     }));
     res.json({ success: true, rooms: roomList });
 });
 
-// 删除房间（管理员接口）
-app.delete('/api/rooms/:id', (req, res) => {
-    const { adminKey } = req.query;
-    if (adminKey !== 'admin123') {
-        return res.status(403).json({ success: false, message: '无权限访问' });
-    }
+// 删除房间（管理员）
+app.delete('/api/rooms/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
     const index = rooms.findIndex(r => r.id === id);
     if (index === -1) {
         return res.status(404).json({ success: false, message: '房间不存在' });
     }
-
     rooms.splice(index, 1);
-    saveData();
+    await db.deleteById('rooms', id);
     res.json({ success: true, message: '房间已删除' });
 });
 
-// ===== Socket.io 事件处理 =====
+// ===== 私聊 API =====
+
+// 获取私聊历史
+app.get('/api/private-messages/:userId', authenticateToken, async (req, res) => {
+    const currentUserId = req.user.id;
+    const otherUserId = req.params.userId;
+
+    const messages = await db.find('privateMessages', {}, { sort: { timestamp: 1 } });
+
+    // 筛选两人之间的消息
+    const filtered = messages.filter(m =>
+        (m.from === currentUserId && m.to === otherUserId) ||
+        (m.from === otherUserId && m.to === currentUserId)
+    ).slice(-200);
+
+    // 标记对方发来的消息为已读
+    await db.update('privateMessages',
+        { from: otherUserId, to: currentUserId, read: false },
+        { $set: { read: true } }
+    );
+
+    res.json({ success: true, messages: filtered });
+});
+
+// 获取未读私聊数量
+app.get('/api/private-messages/unread/count', authenticateToken, async (req, res) => {
+    const allMessages = await db.find('privateMessages', { to: req.user.id, read: false });
+    res.json({ success: true, count: allMessages.length });
+});
+
+// ===== Socket.io 事件 =====
 
 io.on('connection', (socket) => {
     console.log('用户连接:', socket.id);
 
-    // 用户认证
-    socket.on('auth', ({ userId, username }) => {
+    // 用户认证（支持 token）
+    socket.on('auth', ({ userId, username, token }) => {
         if (typeof username !== 'string' || username.length > 50) return;
-        socketToUser.set(socket.id, { userId, username, roomId: null });
+        // 如果提供了 token，验证其有效性
+        let role = 'user';
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, JWT_SECRET);
+                role = decoded.role || 'user';
+            } catch {
+                // token 无效但不阻止连接
+            }
+        }
+        socketToUser.set(socket.id, { userId, username, role, roomId: null });
         console.log(`用户认证: ${username} (${userId})`);
     });
 
@@ -412,11 +463,7 @@ io.on('connection', (socket) => {
         socketToRoom.set(socket.id, roomId);
 
         const userInfo = socketToUser.get(socket.id);
-        if (userInfo) {
-            userInfo.roomId = roomId;
-        }
-
-        saveData();
+        if (userInfo) userInfo.roomId = roomId;
 
         socket.emit('room-created', {
             roomId,
@@ -444,7 +491,7 @@ io.on('connection', (socket) => {
                 id: r.id,
                 name: r.name,
                 host: r.host,
-                memberCount: r.members.length,
+                memberCount: r.members ? r.members.length : 0,
                 hasPassword: !!r.password,
                 videoUrl: r.videoUrl
             }));
@@ -452,7 +499,7 @@ io.on('connection', (socket) => {
     });
 
     // 加入房间
-    socket.on('join-room', ({ roomId, password, username }) => {
+    socket.on('join-room', async ({ roomId, password, username }) => {
         const room = rooms.find(r => r.id === roomId);
         if (!room) {
             return socket.emit('join-error', { message: '房间不存在' });
@@ -462,7 +509,6 @@ io.on('connection', (socket) => {
             return socket.emit('join-error', { message: '房间密码错误' });
         }
 
-        // 防止重复加入
         if (room.members.some(m => m.socketId === socket.id)) {
             return socket.emit('join-error', { message: '你已经在房间中了' });
         }
@@ -471,11 +517,30 @@ io.on('connection', (socket) => {
         socketToRoom.set(socket.id, roomId);
 
         const userInfo = socketToUser.get(socket.id);
-        if (userInfo) {
-            userInfo.roomId = roomId;
-        }
+        if (userInfo) userInfo.roomId = roomId;
 
         room.members.push({ socketId: socket.id, username });
+
+        // 从持久化存储加载历史消息（最近 100 条）
+        let historyMessages = [];
+        try {
+            const stored = await db.find('messages', { roomId }, { sort: { timestamp: 1 } });
+            historyMessages = stored.slice(-100);
+        } catch (e) {
+            console.error('加载历史消息失败:', e);
+        }
+
+        // 合并内存中的最新消息和持久化消息
+        const allMessages = [...historyMessages, ...room.messages.slice(-50)];
+        // 去重（根据 id）
+        const seen = new Set();
+        const uniqueMessages = [];
+        for (const msg of allMessages) {
+            if (!seen.has(msg.id)) {
+                seen.add(msg.id);
+                uniqueMessages.push(msg);
+            }
+        }
 
         socket.emit('joined-room', {
             roomId: room.id,
@@ -484,7 +549,7 @@ io.on('connection', (socket) => {
             videoUrl: room.videoUrl,
             videoState: room.videoState,
             members: room.members.map(m => m.username),
-            messages: room.messages.slice(-50),
+            messages: uniqueMessages.slice(-100),
             announcement: room.announcement,
             isPublic: room.isPublic,
             danmakuEnabled: room.danmakuEnabled,
@@ -494,12 +559,12 @@ io.on('connection', (socket) => {
 
         socket.to(roomId).emit('user-joined', { username, memberCount: room.members.length });
 
-        saveData();
+        await db.updateById('rooms', roomId, room);
         console.log(`用户加入: ${username} -> ${room.name}`);
     });
 
     // 离开房间
-    socket.on('leave-room', () => {
+    socket.on('leave-room', async () => {
         const roomId = socketToRoom.get(socket.id);
         if (roomId) {
             const room = rooms.find(r => r.id === roomId);
@@ -513,9 +578,8 @@ io.on('connection', (socket) => {
                         io.to(roomId).emit('host-changed', { newHost: room.host });
                     } else {
                         const index = rooms.findIndex(r => r.id === roomId);
-                        if (index !== -1) {
-                            rooms.splice(index, 1);
-                        }
+                        if (index !== -1) rooms.splice(index, 1);
+                        await db.deleteById('rooms', roomId);
                     }
                 }
 
@@ -524,21 +588,20 @@ io.on('connection', (socket) => {
                     memberCount: room.members.length
                 });
 
-                saveData();
+                await db.updateById('rooms', roomId, room);
             }
             socket.leave(roomId);
             socketToRoom.delete(socket.id);
         }
     });
 
-    // 视频同步事件
+    // 视频同步
     socket.on('video-play', ({ roomId, currentTime }) => {
         const room = rooms.find(r => r.id === roomId);
         if (room) {
             room.videoState.isPlaying = true;
             room.videoState.currentTime = currentTime;
             room.videoState.lastUpdate = Date.now();
-            saveData();
             socket.to(roomId).emit('video-play', { currentTime });
         }
     });
@@ -549,7 +612,6 @@ io.on('connection', (socket) => {
             room.videoState.isPlaying = false;
             room.videoState.currentTime = currentTime;
             room.videoState.lastUpdate = Date.now();
-            saveData();
             socket.to(roomId).emit('video-pause', { currentTime });
         }
     });
@@ -559,7 +621,6 @@ io.on('connection', (socket) => {
         if (room) {
             room.videoState.currentTime = currentTime;
             room.videoState.lastUpdate = Date.now();
-            saveData();
             socket.to(roomId).emit('video-seek', { currentTime });
         }
     });
@@ -568,12 +629,10 @@ io.on('connection', (socket) => {
         const room = rooms.find(r => r.id === roomId);
         if (room) {
             room.videoState.playbackRate = playbackRate;
-            saveData();
             socket.to(roomId).emit('video-rate-change', { playbackRate });
         }
     });
 
-    // 定期同步视频进度（每秒）
     socket.on('video-timeupdate', ({ roomId, currentTime }) => {
         const room = rooms.find(r => r.id === roomId);
         if (room && room.hostSocketId === socket.id) {
@@ -583,21 +642,19 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 请求同步（新成员加入时）
     socket.on('request-sync', ({ roomId }) => {
         const room = rooms.find(r => r.id === roomId);
-        if (room) {
-            socket.emit('video-state', room.videoState);
-        }
+        if (room) socket.emit('video-state', room.videoState);
     });
 
-    // 聊天消息
-    socket.on('chat-message', ({ roomId, message, username }) => {
+    // 聊天消息（持久化到 messages 集合）
+    socket.on('chat-message', async ({ roomId, message, username }) => {
         if (typeof message !== 'string' || message.length > 1000) return;
         const room = rooms.find(r => r.id === roomId);
         if (room) {
             const chatMessage = {
                 id: uuidv4(),
+                roomId,
                 username,
                 message: sanitizeString(message, 1000),
                 timestamp: new Date().toISOString()
@@ -608,7 +665,9 @@ io.on('connection', (socket) => {
                 room.messages = room.messages.slice(-200);
             }
 
-            saveData();
+            // 持久化到数据库
+            await db.insert('messages', chatMessage);
+
             io.to(roomId).emit('chat-message', chatMessage);
         }
     });
@@ -618,7 +677,6 @@ io.on('connection', (socket) => {
         if (typeof text !== 'string' || text.length > 100) return;
         const room = rooms.find(r => r.id === roomId);
         if (room && room.danmakuEnabled !== false) {
-            // 验证颜色格式
             const validColor = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#ffffff';
             const validPosition = ['scroll', 'top', 'bottom'].includes(position) ? position : 'scroll';
             const danmaku = {
@@ -645,7 +703,6 @@ io.on('connection', (socket) => {
                 playbackRate: 1,
                 lastUpdate: Date.now()
             };
-            saveData();
             io.to(roomId).emit('video-loaded', { videoUrl });
         }
     });
@@ -656,7 +713,6 @@ io.on('connection', (socket) => {
         const room = rooms.find(r => r.id === roomId);
         if (room && room.hostSocketId === socket.id) {
             room.playlist = playlist;
-            saveData();
             io.to(roomId).emit('playlist-updated', { playlist });
         }
     });
@@ -674,7 +730,6 @@ io.on('connection', (socket) => {
                     playbackRate: 1,
                     lastUpdate: Date.now()
                 };
-                saveData();
                 io.to(roomId).emit('playlist-play', {
                     index: room.currentPlaylistIndex,
                     videoUrl: nextVideo.url
@@ -694,11 +749,7 @@ io.on('connection', (socket) => {
                 playbackRate: 1,
                 lastUpdate: Date.now()
             };
-            saveData();
-            io.to(roomId).emit('playlist-play', {
-                index,
-                videoUrl: room.playlist[index].url
-            });
+            io.to(roomId).emit('playlist-play', { index, videoUrl: room.playlist[index].url });
         }
     });
 
@@ -706,16 +757,9 @@ io.on('connection', (socket) => {
     socket.on('update-room-settings', ({ roomId, announcement, isPublic, danmakuEnabled }) => {
         const room = rooms.find(r => r.id === roomId);
         if (room && room.hostSocketId === socket.id) {
-            if (announcement !== undefined) {
-                room.announcement = sanitizeString(announcement, 500);
-            }
-            if (isPublic !== undefined) {
-                room.isPublic = !!isPublic;
-            }
-            if (danmakuEnabled !== undefined) {
-                room.danmakuEnabled = !!danmakuEnabled;
-            }
-            saveData();
+            if (announcement !== undefined) room.announcement = sanitizeString(announcement, 500);
+            if (isPublic !== undefined) room.isPublic = !!isPublic;
+            if (danmakuEnabled !== undefined) room.danmakuEnabled = !!danmakuEnabled;
             io.to(roomId).emit('room-settings-updated', {
                 announcement: room.announcement,
                 isPublic: room.isPublic,
@@ -726,7 +770,6 @@ io.on('connection', (socket) => {
 
     // 文件分享
     socket.on('share-file', ({ roomId, username, fileName, fileSize, fileType, fileData }) => {
-        // 限制文件大小（Base64 约 5MB 实际数据 ≈ 6.7MB Base64 字符串）
         if (typeof fileData !== 'string' || fileData.length > 7 * 1024 * 1024) {
             return socket.emit('share-error', { message: '文件大小不能超过 5MB' });
         }
@@ -736,6 +779,7 @@ io.on('connection', (socket) => {
         if (room) {
             const fileMessage = {
                 id: uuidv4(),
+                roomId,
                 username,
                 type: 'file',
                 fileName: sanitizeString(fileName, 200),
@@ -750,38 +794,30 @@ io.on('connection', (socket) => {
                 room.messages = room.messages.slice(-200);
             }
 
-            saveData();
+            // 持久化到数据库
+            db.insert('messages', fileMessage).catch(e => console.error('保存文件消息失败:', e));
+
             io.to(roomId).emit('file-shared', fileMessage);
         }
     });
 
     // ===== WebRTC 信令 =====
-
     socket.on('webrtc-offer', ({ targetId, offer }) => {
         if (typeof targetId !== 'string' || typeof offer !== 'object') return;
-        io.to(targetId).emit('webrtc-offer', {
-            senderId: socket.id,
-            offer
-        });
+        io.to(targetId).emit('webrtc-offer', { senderId: socket.id, offer });
     });
 
     socket.on('webrtc-answer', ({ targetId, answer }) => {
         if (typeof targetId !== 'string' || typeof answer !== 'object') return;
-        io.to(targetId).emit('webrtc-answer', {
-            senderId: socket.id,
-            answer
-        });
+        io.to(targetId).emit('webrtc-answer', { senderId: socket.id, answer });
     });
 
     socket.on('webrtc-ice-candidate', ({ targetId, candidate }) => {
         if (typeof targetId !== 'string' || typeof candidate !== 'object') return;
-        io.to(targetId).emit('webrtc-ice-candidate', {
-            senderId: socket.id,
-            candidate
-        });
+        io.to(targetId).emit('webrtc-ice-candidate', { senderId: socket.id, candidate });
     });
 
-    // 屏幕分享状态广播
+    // 屏幕分享
     socket.on('screen-share-started', ({ roomId }) => {
         const room = rooms.find(r => r.id === roomId);
         if (room && room.hostSocketId === socket.id) {
@@ -793,13 +829,51 @@ io.on('connection', (socket) => {
 
     socket.on('screen-share-stopped', ({ roomId }) => {
         const room = rooms.find(r => r.id === roomId);
-        if (room) {
-            socket.to(roomId).emit('screen-share-stopped');
+        if (room) socket.to(roomId).emit('screen-share-stopped');
+    });
+
+    // ===== 私聊功能 =====
+    socket.on('private-message', async ({ toUserId, message, fromUsername }) => {
+        const fromUser = socketToUser.get(socket.id);
+        if (!fromUser) return;
+        if (typeof message !== 'string' || message.length > 1000) return;
+
+        const privateMessage = {
+            id: uuidv4(),
+            from: fromUser.userId,
+            to: toUserId,
+            fromUsername,
+            message: sanitizeString(message, 1000),
+            timestamp: new Date().toISOString(),
+            read: false
+        };
+
+        // 持久化
+        await db.insert('privateMessages', privateMessage);
+
+        // 通知接收者（如果在线）
+        for (const [socketId, userInfo] of socketToUser.entries()) {
+            if (userInfo.userId === toUserId) {
+                io.to(socketId).emit('private-message-received', privateMessage);
+            }
         }
+
+        // 回执给发送者
+        socket.emit('private-message-sent', privateMessage);
+    });
+
+    // 标记私聊已读
+    socket.on('private-message-read', async ({ fromUserId }) => {
+        const currentUser = socketToUser.get(socket.id);
+        if (!currentUser) return;
+        await db.update('privateMessages',
+            { from: fromUserId, to: currentUser.userId, read: false },
+            { $set: { read: true } }
+        );
     });
 
     // 断开连接
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         const roomId = socketToRoom.get(socket.id);
         if (roomId) {
             const room = rooms.find(r => r.id === roomId);
@@ -814,9 +888,8 @@ io.on('connection', (socket) => {
                         io.to(roomId).emit('host-changed', { newHost: room.host });
                     } else {
                         const index = rooms.findIndex(r => r.id === roomId);
-                        if (index !== -1) {
-                            rooms.splice(index, 1);
-                        }
+                        if (index !== -1) rooms.splice(index, 1);
+                        await db.deleteById('rooms', roomId);
                     }
                 }
 
@@ -825,20 +898,33 @@ io.on('connection', (socket) => {
                     memberCount: room.members.length
                 });
 
-                saveData();
+                await db.updateById('rooms', roomId, room);
             }
+            socket.leave(roomId);
+            socketToRoom.delete(socket.id);
         }
 
         socketToUser.delete(socket.id);
-        socketToRoom.delete(socket.id);
         console.log('用户断开连接:', socket.id);
     });
 });
 
+// 定期保存房间数据到数据库（每 30 秒）
+setInterval(async () => {
+    for (const room of rooms) {
+        const exists = await db.findById('rooms', room.id);
+        if (exists) {
+            await db.updateById('rooms', room.id, room);
+        } else {
+            await db.insert('rooms', room);
+        }
+    }
+}, 30000);
+
 // 启动服务器
-server.listen(PORT, () => {
-    loadData();
-    initDefaultAdmin();
+server.listen(PORT, async () => {
+    await initDefaultAdmin();
+    await loadRoomsFromDB();
     console.log(`SyncCinema 服务器运行在端口 ${PORT}`);
     console.log(`管理后台: http://localhost:${PORT}/admin/`);
     console.log(`播放页面: http://localhost:${PORT}/player/`);

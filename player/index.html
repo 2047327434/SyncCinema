@@ -486,6 +486,21 @@
         </div>
     </div>
 
+    <!-- 私聊弹窗 -->
+    <div id="private-chat-modal" class="modal-overlay hidden">
+        <div class="modal private-chat-modal">
+            <div class="modal-header">
+                <h3 id="private-chat-title">💬 私聊</h3>
+                <button type="button" class="btn btn-icon" id="close-private-chat">✕</button>
+            </div>
+            <div class="private-chat-messages" id="private-chat-messages"></div>
+            <form id="private-chat-form" class="private-chat-input-area">
+                <input type="text" id="private-chat-input" placeholder="输入私聊消息..." maxlength="1000" autocomplete="off">
+                <button type="submit" class="btn btn-primary">发送</button>
+            </form>
+        </div>
+    </div>
+
     <!-- 屏幕分享提示 -->
     <div id="screen-share-overlay" class="screen-share-overlay hidden">
         <div class="screen-share-info">
