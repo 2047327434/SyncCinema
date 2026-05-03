@@ -41,6 +41,16 @@ function checkRateLimit(ip) {
     return true;
 }
 
+// 定期清理过期的 rate limit 记录，防止内存泄漏
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of rateLimits.entries()) {
+        if (now > record.resetTime) {
+            rateLimits.delete(ip);
+        }
+    }
+}, 60000);
+
 // 输入验证
 function validateUsername(username) {
     if (typeof username !== 'string') return false;
@@ -110,7 +120,9 @@ function generateToken(user) {
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, '..')));
+// 仅暴露前端静态文件，不暴露 server 源码和数据
+app.use('/player', express.static(path.join(__dirname, '..', 'player')));
+app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
 
 app.use((req, res, next) => {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
@@ -851,9 +863,9 @@ io.on('connection', (socket) => {
         // 持久化
         await db.insert('privateMessages', privateMessage);
 
-        // 通知接收者（如果在线）
+        // 通知接收者（如果在线）—— 支持 userId(UUID) 和 username 两种匹配
         for (const [socketId, userInfo] of socketToUser.entries()) {
-            if (userInfo.userId === toUserId) {
+            if (userInfo.userId === toUserId || userInfo.username === toUserId) {
                 io.to(socketId).emit('private-message-received', privateMessage);
             }
         }
@@ -928,4 +940,30 @@ server.listen(PORT, async () => {
     console.log(`SyncCinema 服务器运行在端口 ${PORT}`);
     console.log(`管理后台: http://localhost:${PORT}/admin/`);
     console.log(`播放页面: http://localhost:${PORT}/player/`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`端口 ${PORT} 已被占用，请关闭占用进程或更换端口（设置 PORT 环境变量）`);
+        process.exit(1);
+    } else {
+        console.error('服务器启动失败:', err);
+        process.exit(1);
+    }
 });
+
+// 优雅关闭
+function gracefulShutdown() {
+    console.log('正在关闭服务器...');
+    io.close();
+    server.close(() => {
+        console.log('服务器已关闭');
+        process.exit(0);
+    });
+    // 5秒超时强制退出
+    setTimeout(() => {
+        console.error('强制关闭服务器');
+        process.exit(1);
+    }, 5000);
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);

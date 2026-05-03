@@ -400,6 +400,31 @@ docker run -d -p 3000:3000 --name synccinema synccinema
 
 ## 更新日志
 
+### v2.1.1 — 2026-05-03
+
+**🐛 Bug 修复**
+
+| 修复项 | 级别 | 说明 |
+|--------|------|------|
+| 🔴 同步循环修复 | P0 | 远程播放/暂停/进度事件触发本地 video 事件后再 emit 回服务器，形成循环；引入 `_isRemoteSyncing` 标志彻底阻断 |
+| 🔴 端口占用崩溃修复 | P0 | `EADDRINUSE` 未捕获导致进程直接崩溃，改为优雅退出并提示用户 |
+| 🔴 Bilibili 番剧嵌入修复 | P0 | 番剧 ep/ss 的 embedUrl 使用了页面链接而非播放器嵌入链接，iframe 无法加载；改用 `player.bilibili.com` 播放器 URL |
+| 🔴 私聊消息送达修复 | P0 | 客户端传 `username` 作为 `toUserId`，服务端按 UUID 匹配，永远找不到目标；服务端改为同时支持 userId 和 username 匹配 |
+| 🔴 私聊接收匹配修复 | P0 | `privateChatTarget.id` 始为 null，`msg.from === null` 永远 false；改为同时匹配 id 和 username |
+| 🟡 静态文件安全加固 | P1 | `express.static('..')` 暴露了 server 源码、数据文件、密钥；改为只暴露 `player/` 和 `admin/` |
+| 🟡 Rate Limit 内存泄漏 | P1 | `rateLimits` Map 只增不减，长期运行内存持续增长；加 60 秒定时清理 |
+| 🟡 聊天 DOM 内存泄漏 | P1 | 聊天消息 DOM 无限 append，长时间在线节点暴增；加 200 条上限自动清理 |
+| 🟡 重复函数定义 | P1 | `saveBlockedKeywordsToStorage` 在 player.js 中定义了两次，删除多余重复 |
+| 🟡 重复请求头 | P2 | `admin.js` 中 `apiFetch` 已自动带 Content-Type，手动又传一遍 |
+| ⚪ 优雅关闭 | P2 | 新增 SIGTERM/SIGINT 处理，关闭时保存状态、5 秒超时强制退出 |
+
+**⚙️ 技术改动**
+- `server/server.js`：EADDRINUSE 错误处理、优雅关闭、rate limit 定期清理、静态文件路径限制、私聊 username 匹配
+- `player/player.js`：`_isRemoteSyncing` 同步循环阻断、私聊接收匹配修复、Bilibili 番剧 embed URL、聊天 DOM 上限、删除重复函数
+- `admin/admin.js`：删除重复 Content-Type header、注释标注公开接口
+
+---
+
 ### v2.1.0 — 2026-04-29
 
 **🆕 新增功能**

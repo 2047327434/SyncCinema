@@ -268,6 +268,7 @@ function renderUsers(userList) {
 // 加载房间列表
 async function loadRooms() {
     try {
+        // /api/rooms 是公开接口，不需要 JWT
         const response = await fetch(`${API_URL}/api/rooms`);
         const data = await response.json();
 
@@ -353,7 +354,6 @@ async function toggleUserStatus(userId, currentStatus) {
     try {
         const response = await apiFetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/status`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
         });
 

@@ -18,6 +18,9 @@ let blockedDanmakuKeywords = [];
 let playlist = [];
 let currentPlaylistIndex = -1;
 
+// 防止同步循环：远程操作触发本地事件时，标记为远程同步，避免再 emit 回服务器
+let _isRemoteSyncing = false;
+
 // WebRTC
 let localStream = null;
 let peerConnections = new Map();
@@ -159,10 +162,6 @@ function loadBlockedKeywords() {
     }
 }
 
-function saveBlockedKeywords() {
-    localStorage.setItem('sc_blocked_danmaku', JSON.stringify(blockedDanmakuKeywords));
-}
-
 // ===== 观看历史 =====
 function addWatchHistory(roomName, videoUrl) {
     if (!videoUrl) return;
@@ -277,13 +276,13 @@ function parseVideoUrl(url) {
     // Bilibili ep (番剧)
     const epMatch = trimmed.match(/bilibili\.com\/bangumi\/play\/(ep\d+)/i);
     if (epMatch) {
-        return { type: 'bilibili', id: epMatch[1], embedUrl: `https://www.bilibili.com/bangumi/play/${encodeURIComponent(epMatch[1])}`, isEp: true };
+        return { type: 'bilibili', id: epMatch[1], embedUrl: `https://player.bilibili.com/player.html?ep=${encodeURIComponent(epMatch[1].replace('ep',''))}&high_quality=1&danmaku=0`, isEp: true };
     }
 
     // Bilibili ss (番剧系列)
     const ssMatch = trimmed.match(/bilibili\.com\/bangumi\/play\/(ss\d+)/i);
     if (ssMatch) {
-        return { type: 'bilibili', id: ssMatch[1], embedUrl: `https://www.bilibili.com/bangumi/play/${encodeURIComponent(ssMatch[1])}`, isSs: true };
+        return { type: 'bilibili', id: ssMatch[1], embedUrl: `https://player.bilibili.com/player.html?ssid=${encodeURIComponent(ssMatch[1].replace('ss',''))}&high_quality=1&danmaku=0`, isSs: true };
     }
 
     // Bilibili b23.tv short link
@@ -468,33 +467,41 @@ function connectSocket() {
 
     socket.on('video-play', ({ currentTime }) => {
         if (currentVideoType !== 'native') return;
+        _isRemoteSyncing = true;
         const video = document.getElementById('video-player');
         if (Math.abs(video.currentTime - currentTime) > 0.5) video.currentTime = currentTime;
         video.play();
         showSyncStatus('播放');
+        setTimeout(() => { _isRemoteSyncing = false; }, 500);
     });
 
     socket.on('video-pause', ({ currentTime }) => {
         if (currentVideoType !== 'native') return;
+        _isRemoteSyncing = true;
         const video = document.getElementById('video-player');
         video.currentTime = currentTime;
         video.pause();
         showSyncStatus('暂停');
+        setTimeout(() => { _isRemoteSyncing = false; }, 500);
     });
 
     socket.on('video-seek', ({ currentTime }) => {
         if (currentVideoType !== 'native') return;
+        _isRemoteSyncing = true;
         const video = document.getElementById('video-player');
         video.currentTime = currentTime;
         showSyncStatus('进度同步');
+        setTimeout(() => { _isRemoteSyncing = false; }, 500);
     });
 
     socket.on('video-rate-change', ({ playbackRate }) => {
         if (currentVideoType !== 'native') return;
+        _isRemoteSyncing = true;
         const video = document.getElementById('video-player');
         video.playbackRate = playbackRate;
         document.getElementById('rate-select').value = playbackRate;
         showSyncStatus(`倍速 ${playbackRate}x`);
+        setTimeout(() => { _isRemoteSyncing = false; }, 500);
     });
 
     socket.on('video-sync', ({ currentTime }) => {
@@ -576,7 +583,9 @@ function connectSocket() {
 
     // 私聊
     socket.on('private-message-received', (msg) => {
-        if (privateChatOpen && privateChatTarget && msg.from === privateChatTarget.id) {
+        const isFromCurrentTarget = privateChatTarget &&
+            (msg.from === privateChatTarget.id || msg.fromUsername === privateChatTarget.username);
+        if (privateChatOpen && isFromCurrentTarget) {
             privateChatMessages.push(msg);
             renderPrivateChat();
             socket.emit('private-message-read', { fromUserId: msg.from });
@@ -1292,22 +1301,21 @@ function setupDelegatedEventListeners() {
 // ===== 视频事件 =====
 function setupVideoEvents() {
     const video = document.getElementById('video-player');
-    let isSyncing = false;
 
     video.addEventListener('play', () => {
-        if (socket && currentRoom && isHost && !isSyncing && currentVideoType === 'native') {
+        if (socket && currentRoom && isHost && !_isRemoteSyncing && currentVideoType === 'native') {
             socket.emit('video-play', { roomId: currentRoom.id, currentTime: video.currentTime });
         }
     });
 
     video.addEventListener('pause', () => {
-        if (socket && currentRoom && isHost && !isSyncing && currentVideoType === 'native') {
+        if (socket && currentRoom && isHost && !_isRemoteSyncing && currentVideoType === 'native') {
             socket.emit('video-pause', { roomId: currentRoom.id, currentTime: video.currentTime });
         }
     });
 
     video.addEventListener('seeked', () => {
-        if (socket && currentRoom && isHost && !isSyncing && currentVideoType === 'native') {
+        if (socket && currentRoom && isHost && !_isRemoteSyncing && currentVideoType === 'native') {
             socket.emit('video-seek', { roomId: currentRoom.id, currentTime: video.currentTime });
         }
     });
@@ -1675,6 +1683,10 @@ function addChatMessage(msg) {
         div.innerHTML = `<div class="msg-user">${escapeHtml(msg.username)}</div><div class="msg-text">${escapeHtml(msg.message)}</div><div class="msg-time">${formatTime(msg.timestamp)}</div>`;
     }
     container.appendChild(div);
+    // 限制聊天消息 DOM 数量，防止内存泄漏
+    while (container.children.length > 200) {
+        container.removeChild(container.firstChild);
+    }
     container.scrollTop = container.scrollHeight;
 }
 
@@ -1684,6 +1696,10 @@ function addSystemMessage(text) {
     div.className = 'system-message';
     div.textContent = text;
     container.appendChild(div);
+    // 限制聊天消息 DOM 数量
+    while (container.children.length > 200) {
+        container.removeChild(container.firstChild);
+    }
     container.scrollTop = container.scrollHeight;
 }
 
