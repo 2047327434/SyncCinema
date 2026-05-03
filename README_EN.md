@@ -34,6 +34,60 @@ Watching videos alone is fine. Watching together is better. SyncCinema bridges t
 
 ---
 
+## Privacy Policy
+
+**Last updated: 2026-05-03**
+
+SyncCinema respects your privacy. Here's how we handle your data.
+
+### Information We Collect
+
+| Data Type | Purpose | Storage |
+|-----------|---------|---------|
+| Username & password | Account authentication | Server database (password hashed with bcrypt) |
+| Avatar & bio | User profile display | Server database |
+| Chat messages | Room chat and private messaging | Server database (persistent) |
+| Room data | Room creation and management | Server database (auto-deleted when room is empty) |
+| Shared files | File sharing in chat | Server database (max 5MB per file) |
+| Watch history & favorites | Quick access to previous rooms | Browser localStorage |
+| Danmaku blocklist | Keyword filtering preference | Browser localStorage |
+
+### Data Security
+
+- **Passwords** are hashed using bcrypt and never stored in plain text
+- **JWT tokens** are used for authentication with configurable expiration (7 days default)
+- **Rate limiting** is enforced (60 requests/min per IP) to prevent abuse
+- **XSS protection** is applied to all user-generated content
+- **File uploads** are limited to 5MB (shared files) and 2MB (avatars)
+- **Static file isolation** — only `player/` and `admin/` directories served
+
+### Data We Do NOT Collect
+
+- We do not collect, store, or process any video content you watch
+- We do not track your browsing behavior outside our service
+- We do not use cookies for advertising or analytics tracking
+- We do not share your data with third parties
+- We do not access your microphone or camera without explicit permission (WebRTC requires user consent)
+
+### Third-Party Services
+
+SyncCinema may embed YouTube and Bilibili content via iframe. These platforms have their own privacy policies. SyncCinema does not send your personal data to them.
+
+### Data Retention & Deletion
+
+- Room data is automatically deleted when all members leave
+- Chat history is retained per room (up to 200 in memory, 100 in persistent storage)
+- Account data can be deleted by an administrator upon request
+- You can clear your local watch history and favorites from the browser
+
+### Self-Hosted Deployments
+
+If you self-host SyncCinema, you are the data controller. You are responsible for server security, JWT_SECRET/CORS configuration, user data compliance, and backup strategy.
+
+> Full privacy policy (including Chinese version) available at [PRIVACY.md](PRIVACY.md)
+
+---
+
 ## Features
 
 ### Core
@@ -305,12 +359,6 @@ See the [open issues](https://github.com/2047327434/SyncCinema/issues) for a ful
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## Privacy Policy
-
-We take your privacy seriously. Please read our [Privacy Policy](PRIVACY.md) to understand how we collect, use, and protect your data.
 
 ---
 
