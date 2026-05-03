@@ -13,7 +13,7 @@
 
 A real-time synchronized video watching platform — play, pause, seek, and chat in perfect sync with friends anywhere in the world.
 
-[Getting Started](#-getting-started) · [Features](#-features) · [Deploy](#-deployment) · [API Docs](#-api-reference) · [Contributing](CONTRIBUTING.md)
+[Getting Started](#quick-start) · [Features](#features) · [Deploy](#deployment) · [API Docs](#api-reference) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -88,7 +88,7 @@ If you self-host SyncCinema, you are the data controller. You are responsible fo
 
 ---
 
-## Features
+<h2 id="features">Features</h2>
 
 ### Core
 
@@ -145,7 +145,7 @@ If you self-host SyncCinema, you are the data controller. You are responsible fo
 
 ---
 
-## Getting Started
+<h2 id="quick-start">Getting Started</h2>
 
 ### Prerequisites
 
@@ -185,7 +185,7 @@ Password: admin123
 
 ---
 
-## Deployment
+<h2 id="deployment">Deployment</h2>
 
 ### Docker (Recommended)
 
@@ -243,7 +243,7 @@ SyncCinema/
 
 ---
 
-## API Reference
+<h2 id="api-reference">API Reference</h2>
 
 ### REST Endpoints
 
