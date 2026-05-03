@@ -1,8 +1,7 @@
 # Dependencies
 server/node_modules/
-server/package-lock.json
 
-# Data files (local dev data)
+# Data files (local dev data — use database in production)
 server/data/
 
 # Logs
@@ -18,13 +17,28 @@ pids/
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # Temp
 *.tmp
 *.temp
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Build
+dist/
+build/
+
+# Uploads (if video upload feature is added later)
+uploads/
+server/package-lock.json

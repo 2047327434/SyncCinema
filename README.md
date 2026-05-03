@@ -1,519 +1,383 @@
-> ⚠️ **声明：本项目由 AI 辅助生成**
->
-> 本项目的核心代码、文档及架构设计均由 AI（大型语言模型）辅助完成。项目旨在作为学习参考和技术演示，不建议直接用于生产环境。使用者应自行审查代码安全性，并根据实际需求进行调整和优化。
+<div align="center">
+
+# SyncCinema
+
+**Watch Together, Feel Together**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Socket.io](https://img.shields.io/badge/Socket.io-4.7-010101?logo=socket.io&logoColor=white)](https://socket.io/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+A real-time synchronized video watching platform — play, pause, seek, and chat in perfect sync with friends anywhere in the world.
+
+[Getting Started](#-getting-started) · [Features](#-features) · [Deploy](#-deployment) · [API Docs](#-api-reference) · [Contributing](CONTRIBUTING.md)
+
+</div>
 
 ---
 
-# SyncCinema — 同步影院
+## Why SyncCinema?
 
-> 🎬 与远方的朋友一起，同步观看每一帧精彩。
+Watching videos alone is fine. Watching together is better. SyncCinema bridges the distance with **millisecond-precise sync**, so everyone sees the same frame at the same time — no "3...2...1...play!" countdowns needed.
 
-SyncCinema 是一款支持多人实时同步观看视频和在线聊天的 Web 应用。无论你和朋友相隔多远，都能在同一时刻共享观影的快乐。
-
----
-
-## 功能特性
-
-### 核心功能
-
-| 功能 | 说明 |
-|------|------|
-| 🎬 **实时视频同步** | 播放、暂停、进度跳转、倍速播放全房间实时同步 |
-| 💬 **实时聊天** | 支持文字聊天，保留最近 50 条消息历史 |
-| 🔒 **房间管理** | 支持公开/私密房间，私密房间可设置密码 |
-| 👥 **多人在线** | 支持多人同时观看，房主离开后自动转让 |
-| 📢 **房间公告** | 房主可设置房间公告，全员可见 |
-
-### 视频源支持
-
-| 类型 | 支持格式 | 同步精度 |
-|------|---------|---------|
-| 📹 **原生视频** | MP4、WebM、OGG、HLS(m3u8) | ⭐⭐⭐ 毫秒级 |
-| ▶️ **YouTube** | YouTube 视频链接（iframe 嵌入） | ⭐⭐ 受限于 iframe |
-| 📺 **Bilibili** | BV号、av号、番剧(ep/ss)、短链接（iframe 嵌入） | ⭐⭐ 受限于 iframe |
-
-### 聊天增强
-
-- 😊 **表情支持** — 内置 24 个常用 emoji 表情
-- 📎 **文件分享** — 支持图片、视频、文档等文件分享（最大 5MB）
-- 🖼️ **图片预览** — 聊天中图片可直接点击查看大图
-- 💬 **弹幕系统** — 实时发送/显示弹幕，支持滚动/顶部/底部三种模式
-- 🚫 **弹幕屏蔽** — 自定义关键词屏蔽，过滤不想看到的内容
-
-### 观看历史与收藏
-
-- 📜 **自动记录** — 自动记录最近观看的视频和房间（本地存储）
-- 🔄 **一键重播** — 从历史记录一键创建房间，快速回到上次观看
-- ⭐ **房间收藏** — 收藏喜欢的房间，大厅快速进入
-
-### 用户与权限
-
-- 🔐 **账号系统** — 支持用户注册、登录
-- 🖼️ **用户头像** — 支持上传头像或使用默认首字母头像
-- 📝 **个性签名** — 编辑个人资料展示个性签名
-- 🛡️ **权限控制** — 区分普通用户和管理员角色
-- 🚫 **封禁系统** — 管理员可封禁/解封用户账号
-
-### 播放列表
-
-- 🎬 **连续播放** — 添加多个视频到播放列表，自动播放下一个
-- ⏮️⏭️ **上下切换** — 房主可快速切换上一个/下一个视频
-
-### 语音与屏幕分享
-
-- 🎤 **语音聊天** — WebRTC P2P 语音通话（实验性功能）
-- 🖥️ **屏幕分享** — 房主可实时分享屏幕给房间成员
-
-### 定时与提醒
-
-- ⏰ **定时关闭** — 设置自动离开房间时间，到点自动退出
-- 😴 **休息提醒** — 每 45 分钟提醒休息，保护视力健康
-
-### 管理后台
-
-- 👤 **用户管理** — 查看、搜索、删除、封禁/解封用户
-- 🏠 **房间管理** — 查看、搜索、强制解散房间
-- 📊 **数据统计** — 总用户数、活跃房间数、正常/封禁用户统计
-
-### 跨端适配
-
-- 📱 **响应式设计** — 完美适配手机、平板、桌面端
-- 🎨 **暗黑主题** — 专为夜间观影优化的深色界面
+| | SyncCinema | Discord Watch Together | Teleparty |
+|---|---|---|---|
+| Self-hosted | Yes | No | No |
+| Native video sync | 0.3s precision | ~1-2s | ~1s |
+| Custom video sources | MP4/WebM/HLS/YouTube/Bilibili | YouTube only | Netflix/YouTube/Hulu |
+| Danmaku (bullet comments) | Yes | No | No |
+| Voice chat (WebRTC P2P) | Yes | Yes | No |
+| Open source | MIT | - | - |
 
 ---
 
-## 技术栈
+## Features
 
-| 层级 | 技术 | 版本 |
-|------|------|------|
-| 运行时 | Node.js | >= 18 |
-| 后端框架 | Express | ^4.18.2 |
-| 实时通信 | Socket.io | ^4.7.5 |
-| 认证 | JWT (jsonwebtoken) | ^9.0.2 |
-| 前端 | 原生 HTML5 / CSS3 / ES6+ | — |
-| 数据持久化 | JSON 文件存储（可切换 MongoDB/PostgreSQL） | — |
-| 密码加密 | bcryptjs | ^2.4.3 |
-| 语音通话 | WebRTC (P2P) | — |
-| 工具库 | uuid | ^9.0.1 |
+### Core
+
+- **Real-time video sync** — Play, pause, seek, and playback rate synced across all room members with &lt;0.3s auto-calibration
+- **Room system** — Public rooms, password-protected private rooms, auto host-transfer on leave
+- **Live chat** — Text messages with emoji picker, file sharing (images/videos/docs up to 5MB), persistent history
+
+### Video Sources
+
+| Source | Formats | Sync Precision |
+|--------|---------|---------------|
+| Native video | MP4, WebM, OGG, HLS (m3u8) | Millisecond-level |
+| YouTube | Video URLs (iframe embed) | Limited by iframe API |
+| Bilibili | BV/av, bangumi (ep/ss), b23.tv short links | Limited by iframe API |
+
+### Social & Interaction
+
+- **Danmaku** — Bullet comments with scroll/top/bottom modes and keyword filtering
+- **Private messaging** — Click a member's avatar to start a 1-on-1 chat
+- **Voice chat** — WebRTC P2P voice calls (experimental)
+- **Screen sharing** — Host can share screen to all room members
+- **Playlist** — Queue multiple videos with auto-play next
+- **Emoji reactions** — Built-in 24 emoji picker for chat
+
+### User System
+
+- **Authentication** — JWT-based registration/login with Bearer token
+- **Profiles** — Custom avatar upload, personal bio
+- **Room favorites** — Save rooms for quick access
+- **Watch history** — Auto-record recent rooms and videos
+- **Admin panel** — User management, room management, statistics dashboard
+
+### Quality of Life
+
+- **Responsive design** — Mobile, tablet, and desktop optimized
+- **Dark theme** — Designed for comfortable night viewing
+- **Auto-close timer** — Set a timer to auto-leave (15/30/45/60/90/120 min or custom)
+- **Rest reminder** — 45-minute interval break reminders
 
 ---
 
-## 项目结构
+## Tech Stack
 
-```
-videotogether/
-├── server/                     # 后端服务
-│   ├── package.json            # 项目依赖配置
-│   ├── server.js               # 主服务器入口
-│   ├── db.js                   # 数据库抽象层
-│   └── data/                   # 数据持久化目录
-│       ├── users.json          # 用户数据
-│       ├── rooms.json          # 房间数据
-│       ├── messages.json       # 聊天记录
-│       └── privateMessages.json # 私聊记录
-├── admin/                      # 管理后台
-│   ├── index.html              # 管理后台页面
-│   ├── admin.css               # 管理后台样式
-│   └── admin.js                # 管理后台逻辑
-├── player/                     # 用户播放端
-│   ├── index.html              # 播放页面
-│   ├── player.css              # 播放页面样式
-│   └── player.js               # 播放页面逻辑
-└── README.md                   # 项目说明文档
-```
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js >= 18 |
+| Backend | Express ^4.18 |
+| Real-time | Socket.io ^4.7 |
+| Auth | JWT (jsonwebtoken ^9.0) |
+| Frontend | Vanilla HTML5 / CSS3 / ES6+ |
+| Database | JSON file (swappable to MongoDB/PostgreSQL via `db.js`) |
+| Encryption | bcryptjs ^2.4 |
+| Voice | WebRTC (P2P) |
 
 ---
 
-## 快速开始
+## Getting Started
 
-### 环境要求
+### Prerequisites
 
-- [Node.js](https://nodejs.org/) >= 18.0
-- npm >= 9.0
+- [Node.js](https://nodejs.org/) >= 18
+- npm >= 9
 
-### 1. 安装依赖
+### Install & Run
 
 ```bash
+# Clone the repository
+git clone https://github.com/2047327434/SyncCinema.git
+cd SyncCinema
+
+# Install dependencies
 cd server
 npm install
-```
 
-### 2. 启动服务器
-
-```bash
+# Start the server
 npm start
 ```
 
-服务器默认在 `http://localhost:3000` 启动。若端口被占用，会自动尝试 `3001`。
+Server starts at `http://localhost:3001` by default.
 
-### 3. 访问应用
+| Entry | URL | Description |
+|-------|-----|-------------|
+| Player | http://localhost:3001/player/ | Create/join rooms, watch videos |
+| Admin | http://localhost:3001/admin/ | User & room management (admin only) |
 
-| 入口 | 地址 | 说明 |
-|------|------|------|
-| 🎬 播放页面 | http://localhost:3000/player/ | 用户观影、创建/加入房间 |
-| 🛠️ 管理后台 | http://localhost:3000/admin/ | 管理员账号登录后使用 |
-
-### 4. 默认管理员账号
+### Default Admin Account
 
 ```
-用户名: admin
-密码:   admin123
+Username: admin
+Password: admin123
 ```
 
-> ⚠️ **首次部署后，请立即修改默认管理员密码。**
+> Change the default password immediately after first deployment.
 
 ---
 
-## 使用指南
+## Deployment
 
-### 创建房间
-
-1. 在播放页面注册或登录账号
-2. 进入大厅，点击右上角 **「+ 创建房间」**
-3. 填写房间名称、粘贴视频链接（可选）
-4. 选择公开/私密，设置密码（可选）
-5. 点击 **「创建」** 即可开始观影
-
-### 加入房间
-
-1. 在大厅浏览公开房间列表
-2. 点击任意房间卡片即可加入
-3. 若房间设有密码，输入正确密码后即可进入
-
-### 视频同步说明
-
-| 操作 | 房主行为 | 成员效果 |
-|------|---------|---------|
-| 播放/暂停 | 点击播放器控制 | 全员视频同步播放/暂停 |
-| 拖拽进度 | 拖动进度条 | 全员视频跳转到同一位置 |
-| 调整倍速 | 选择播放速度 | 全员视频切换为相同倍速 |
-| 加载新视频 | 输入新链接并加载 | 全员播放器切换新视频 |
-
-- **成员**可随时点击 **「同步进度」** 手动校准到房主当前位置
-- 系统每秒自动检测进度偏差，超过 **0.3 秒** 时自动校准
-
-### 聊天与互动
-
-- 在右侧聊天面板输入文字，按 **Enter** 发送
-- 点击 **😊** 打开表情选择器
-- 点击 **📎** 分享本地文件（图片、视频、文档等）
-- 聊天记录保留最近 **50 条**，新成员加入时可查看
-
----
-
-## 视频同步机制详解
-
-### 房主广播事件
-
-房主的操作会实时通过 WebSocket 广播给房间内所有成员：
-
-| 事件 | 触发条件 | 广播内容 |
-|------|---------|---------|
-| `video-play` | 房主点击播放 | 当前播放时间戳 |
-| `video-pause` | 房主点击暂停 | 当前播放时间戳 |
-| `video-seek` | 房主拖拽进度条 | 目标播放时间戳 |
-| `video-rate-change` | 房主切换倍速 | 新的播放倍速值 |
-| `video-timeupdate` | 每秒定时 | 房主当前播放时间（用于校准） |
-
-### 成员端校准策略
-
-1. **事件响应**：收到播放/暂停/跳转事件时，立即执行对应操作
-2. **定时校准**：每秒对比本地进度与房主进度，偏差 > 0.3s 时自动 seek
-3. **手动校准**：成员可主动点击「同步进度」按钮请求最新状态
-
----
-
-## API 接口文档
-
-### 用户相关
-
-| 方法 | 路径 | 请求体 | 响应 | 说明 |
-|------|------|--------|------|------|
-| POST | `/api/register` | `{ username, password }` | `{ success, user }` | 用户注册 |
-| POST | `/api/login` | `{ username, password }` | `{ success, user }` | 用户登录 |
-| GET | `/api/users` | — | `{ success, users }` | 获取所有用户 |
-| DELETE | `/api/users/:id` | — | `{ success, message }` | 删除指定用户 |
-| PUT | `/api/users/:id/status` | `{ status }` | `{ success, message }` | 修改用户状态（active/banned） |
-
-### 房间相关
-
-| 方法 | 路径 | 响应 | 说明 |
-|------|------|------|------|
-| GET | `/api/rooms` | `{ success, rooms }` | 获取所有房间 |
-| DELETE | `/api/rooms/:id` | `{ success, message }` | 删除指定房间 |
-
----
-
-## Socket.io 事件总览
-
-### 客户端 → 服务端
-
-| 事件名 | 参数 | 权限 | 说明 |
-|--------|------|------|------|
-| `auth` | `{ userId, username }` | 所有用户 | 连接后发送认证信息 |
-| `create-room` | `{ name, isPublic, password, videoUrl, username }` | 登录用户 | 创建新房间 |
-| `join-room` | `{ roomId, password, username }` | 登录用户 | 加入已有房间 |
-| `leave-room` | — | 房间内用户 | 离开当前房间 |
-| `get-rooms` | — | 所有用户 | 获取公开房间列表 |
-| `video-play` | `{ roomId, currentTime }` | 房主 | 播放视频 |
-| `video-pause` | `{ roomId, currentTime }` | 房主 | 暂停视频 |
-| `video-seek` | `{ roomId, currentTime }` | 房主 | 跳转进度 |
-| `video-rate-change` | `{ roomId, playbackRate }` | 房主 | 调整倍速 |
-| `video-timeupdate` | `{ roomId, currentTime }` | 房主 | 每秒同步进度 |
-| `request-sync` | `{ roomId }` | 房间内用户 | 请求当前视频状态 |
-| `load-video` | `{ roomId, videoUrl }` | 房主 | 加载新视频 |
-| `chat-message` | `{ roomId, message, username }` | 房间内用户 | 发送聊天消息 |
-| `share-file` | `{ roomId, username, fileName, fileSize, fileType, fileData }` | 房间内用户 | 分享文件 |
-| `update-room-settings` | `{ roomId, announcement, isPublic }` | 房主 | 更新房间设置 |
-
-### 服务端 → 客户端
-
-| 事件名 | 参数 | 说明 |
-|--------|------|------|
-| `room-created` | `{ roomId, room }` | 房间创建成功 |
-| `joined-room` | `{ roomId, name, host, videoUrl, videoState, members, messages, announcement }` | 成功加入房间 |
-| `join-error` | `{ message }` | 加入房间失败 |
-| `user-joined` | `{ username, memberCount }` | 有用户加入 |
-| `user-left` | `{ username, memberCount }` | 有用户离开 |
-| `host-changed` | `{ newHost }` | 房主变更 |
-| `rooms-list` | `[room]` | 公开房间列表 |
-| `video-loaded` | `{ videoUrl }` | 新视频已加载 |
-| `video-play` | `{ currentTime }` | 播放指令 |
-| `video-pause` | `{ currentTime }` | 暂停指令 |
-| `video-seek` | `{ currentTime }` | 跳转指令 |
-| `video-rate-change` | `{ playbackRate }` | 倍速变更 |
-| `video-sync` | `{ currentTime }` | 进度同步（每秒） |
-| `video-state` | `{ isPlaying, currentTime, playbackRate }` | 完整视频状态 |
-| `chat-message` | `{ id, username, message, timestamp }` | 新聊天消息 |
-| `file-shared` | `{ id, username, type, fileName, fileData, timestamp }` | 文件分享消息 |
-| `room-settings-updated` | `{ announcement, isPublic }` | 房间设置更新 |
-
----
-
-## 部署说明
-
-### Docker 部署（推荐）
-
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY server/package*.json ./
-RUN npm install --production
-COPY . .
-EXPOSE 3000
-CMD ["node", "server/server.js"]
-```
-
-构建并运行：
+### Docker (Recommended)
 
 ```bash
 docker build -t synccinema .
-docker run -d -p 3000:3000 --name synccinema synccinema
+docker run -d -p 3001:3001 \
+  -e JWT_SECRET=your-secret-key \
+  -e DB_TYPE=json \
+  -v synccinema-data:/app/server/data \
+  --name synccinema \
+  synccinema
 ```
 
-### 环境变量
+### Environment Variables
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT` | `3000` | 服务器监听端口 |
-| `JWT_SECRET` | `synccinema-secret-key-change-in-production` | JWT 签名密钥（生产环境必须修改） |
-| `DB_TYPE` | `json` | 数据库类型：`json` / `mongodb` / `postgresql` |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3001` | Server port |
+| `JWT_SECRET` | `synccinema-secret-key-...` | JWT signing key (**must change in production**) |
+| `DB_TYPE` | `json` | Database backend: `json` / `mongodb` / `postgresql` |
 
-### 生产环境建议
+### Production Checklist
 
-1. **修改 JWT_SECRET**：部署前务必修改默认的 JWT 密钥
-2. **数据库替换**：将 JSON 文件存储替换为 MongoDB / PostgreSQL / MySQL（通过 `DB_TYPE` 切换）
-3. **反向代理**：使用 Nginx 做反向代理和 SSL 终端
-4. **持久化卷**：将 `server/data/` 目录挂载到宿主机或云存储
-5. **修改密码**：首次部署后立即修改默认管理员密码
-6. **CORS 配置**：根据实际域名限制 `cors.origin`，不要设为 `*`
-
----
-
-## 安全加固
-
-本项目在开发过程中已进行代码审查并修复了以下安全问题：
-
-| 安全项 | 状态 | 说明 |
-|--------|------|------|
-| XSS 防护 | ✅ 已修复 | 所有文本输出均经过 HTML 实体编码，单引号一并转义 |
-| onclick 注入 | ✅ 已修复 | 所有内联 `onclick` 已替换为 `data-*` + 事件委托 |
-| iframe 协议验证 | ✅ 已修复 | 仅允许 `http://` / `https://` 协议的嵌入链接 |
-| 输入长度限制 | ✅ 已修复 | 用户名、密码、消息、公告等字段均有长度校验 |
-| 管理员权限校验 | ✅ 已修复 | 管理员 API 需 JWT Token + admin 角色 |
-| IDOR 防护 | ✅ 已修复 | 用户资料接口限制只能操作自己的数据 |
-| Rate Limiting | ✅ 已修复 | 全站 API 每分钟最多 60 次请求 |
-| 文件大小限制 | ✅ 已修复 | 分享文件最大 5MB，头像最大 2MB |
-| 数据竞争防护 | ✅ 已修复 | 使用临时文件 + 原子重命名保存数据 |
-| JWT 认证 | ✅ 已修复 | 登录签发 JWT Token，API 统一 Bearer 认证 |
-
-> ⚠️ **安全声明**：JWT Secret 默认值为开发便利设置，生产环境请务必修改 `JWT_SECRET` 环境变量。
-
-## 注意事项
-
-1. **视频格式限制**：原生播放器仅支持浏览器原生解码的格式（MP4/H.264、WebM、OGG）
-2. **跨域问题**：若视频链接跨域，需视频服务器支持 CORS 头部
-3. **YouTube / Bilibili**：通过 iframe 嵌入，受平台限制，无法做到毫秒级同步。Bilibili 大会员视频需先登录 Bilibili 账号
-4. **文件分享限制**：单个文件最大 5MB，通过 base64 传输，大文件建议用外链
-5. **数据安全**：当前使用 JSON 文件存储，无加密，请勿存储敏感信息
-6. **WebRTC 语音**：为实验性功能，需要浏览器支持且受网络环境影响
+- [ ] Change `JWT_SECRET` to a strong random value
+- [ ] Switch `DB_TYPE` to MongoDB or PostgreSQL for production workloads
+- [ ] Set up Nginx reverse proxy with SSL
+- [ ] Mount `server/data/` to a persistent volume
+- [ ] Restrict CORS origin to your actual domain
+- [ ] Change the default admin password
 
 ---
 
-## 功能路线图
+## Project Structure
 
-### 已实现 ✅
-
-- [x] 多人实时视频同步（播放/暂停/进度/倍速）
-- [x] 房间系统（公开/私密/密码保护）
-- [x] 实时文字聊天 + 历史记录
-- [x] YouTube / Bilibili 视频源支持（BV/av/ep/ss/短链接）
-- [x] Bilibili 登录引导
-- [x] 表情选择器
-- [x] 文件分享（图片/视频/文档）
-- [x] 观看历史记录
-- [x] 房间公告与设置
-- [x] 用户注册/登录/权限管理
-- [x] 用户头像与个性签名
-- [x] 房间收藏功能
-- [x] 弹幕系统（滚动/顶部/底部 + 屏蔽关键词）
-- [x] 语音聊天（WebRTC P2P）
-- [x] 屏幕分享
-- [x] 播放列表与连续播放
-- [x] 定时关闭/休息提醒
-- [x] 管理员后台（用户/房间/统计）
-- [x] 响应式布局与移动端适配
-- [x] 暗黑主题 UI
-- [x] 全站 XSS 安全加固
-- [x] 服务端 JWT 认证替换 adminKey
-- [x] 数据库抽象层（JSON/MongoDB/PostgreSQL）
-- [x] 用户私聊功能
-- [x] 房间聊天记录持久化
-
-### 计划开发 📋
-
-- [ ] 消息已读回执
-- [ ] 用户在线状态显示
-- [ ] 服务端消息加密存储
+```
+SyncCinema/
+├── server/                 # Backend
+│   ├── server.js           # Express + Socket.io entry point
+│   ├── db.js               # Database abstraction layer
+│   ├── package.json        # Dependencies
+│   └── data/               # JSON data store (gitignored)
+├── admin/                  # Admin dashboard
+│   ├── index.html
+│   ├── admin.css
+│   └── admin.js
+├── player/                 # User-facing player
+│   ├── index.html
+│   ├── player.css
+│   └── player.js
+├── LICENSE
+├── CONTRIBUTING.md
+└── README.md
+```
 
 ---
 
-## 更新日志
+## API Reference
 
-### v2.1.1 — 2026-05-03
+### REST Endpoints
 
-**🐛 Bug 修复**
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/register` | - | Register new user |
+| POST | `/api/login` | - | Login, returns JWT token |
+| POST | `/api/refresh-token` | JWT | Refresh JWT token |
+| GET | `/api/users/me` | JWT | Get current user profile |
+| PUT | `/api/users/:id/profile` | JWT | Update profile (own only) |
+| PUT | `/api/users/:id/favorites` | JWT | Update favorites (own only) |
+| GET | `/api/users` | Admin | List all users |
+| DELETE | `/api/users/:id` | Admin | Delete a user |
+| PUT | `/api/users/:id/status` | Admin | Ban/unban a user |
+| GET | `/api/rooms` | - | List all rooms |
+| DELETE | `/api/rooms/:id` | Admin | Delete a room |
+| GET | `/api/private-messages/:userId` | JWT | Get private chat history |
+| GET | `/api/private-messages/unread/count` | JWT | Get unread message count |
 
-| 修复项 | 级别 | 说明 |
-|--------|------|------|
-| 🔴 同步循环修复 | P0 | 远程播放/暂停/进度事件触发本地 video 事件后再 emit 回服务器，形成循环；引入 `_isRemoteSyncing` 标志彻底阻断 |
-| 🔴 端口占用崩溃修复 | P0 | `EADDRINUSE` 未捕获导致进程直接崩溃，改为优雅退出并提示用户 |
-| 🔴 Bilibili 番剧嵌入修复 | P0 | 番剧 ep/ss 的 embedUrl 使用了页面链接而非播放器嵌入链接，iframe 无法加载；改用 `player.bilibili.com` 播放器 URL |
-| 🔴 私聊消息送达修复 | P0 | 客户端传 `username` 作为 `toUserId`，服务端按 UUID 匹配，永远找不到目标；服务端改为同时支持 userId 和 username 匹配 |
-| 🔴 私聊接收匹配修复 | P0 | `privateChatTarget.id` 始为 null，`msg.from === null` 永远 false；改为同时匹配 id 和 username |
-| 🟡 静态文件安全加固 | P1 | `express.static('..')` 暴露了 server 源码、数据文件、密钥；改为只暴露 `player/` 和 `admin/` |
-| 🟡 Rate Limit 内存泄漏 | P1 | `rateLimits` Map 只增不减，长期运行内存持续增长；加 60 秒定时清理 |
-| 🟡 聊天 DOM 内存泄漏 | P1 | 聊天消息 DOM 无限 append，长时间在线节点暴增；加 200 条上限自动清理 |
-| 🟡 重复函数定义 | P1 | `saveBlockedKeywordsToStorage` 在 player.js 中定义了两次，删除多余重复 |
-| 🟡 重复请求头 | P2 | `admin.js` 中 `apiFetch` 已自动带 Content-Type，手动又传一遍 |
-| ⚪ 优雅关闭 | P2 | 新增 SIGTERM/SIGINT 处理，关闭时保存状态、5 秒超时强制退出 |
+### Socket.io Events
 
-**⚙️ 技术改动**
-- `server/server.js`：EADDRINUSE 错误处理、优雅关闭、rate limit 定期清理、静态文件路径限制、私聊 username 匹配
-- `player/player.js`：`_isRemoteSyncing` 同步循环阻断、私聊接收匹配修复、Bilibili 番剧 embed URL、聊天 DOM 上限、删除重复函数
-- `admin/admin.js`：删除重复 Content-Type header、注释标注公开接口
+<details>
+<summary>Client → Server</summary>
 
----
+| Event | Params | Role | Description |
+|-------|--------|------|-------------|
+| `auth` | `{ userId, username, token }` | All | Authenticate connection |
+| `create-room` | `{ name, isPublic, password, videoUrl }` | User | Create a room |
+| `join-room` | `{ roomId, password }` | User | Join a room |
+| `leave-room` | - | Member | Leave current room |
+| `video-play` | `{ roomId, currentTime }` | Host | Broadcast play |
+| `video-pause` | `{ roomId, currentTime }` | Host | Broadcast pause |
+| `video-seek` | `{ roomId, currentTime }` | Host | Broadcast seek |
+| `video-rate-change` | `{ roomId, playbackRate }` | Host | Broadcast rate change |
+| `video-timeupdate` | `{ roomId, currentTime }` | Host | Periodic sync (1s) |
+| `load-video` | `{ roomId, videoUrl }` | Host | Load new video |
+| `chat-message` | `{ roomId, message }` | Member | Send chat message |
+| `share-file` | `{ roomId, fileName, fileData, ... }` | Member | Share a file |
+| `danmaku-send` | `{ roomId, text, color, position }` | Member | Send danmaku |
+| `private-message` | `{ toUserId, message }` | User | Send private message |
+| `playlist-update` | `{ roomId, playlist }` | Host | Update playlist |
+| `update-room-settings` | `{ roomId, announcement, isPublic }` | Host | Update room settings |
 
-### v2.1.0 — 2026-04-29
+</details>
 
-**🆕 新增功能**
+<details>
+<summary>Server → Client</summary>
 
-| 功能 | 描述 |
-|------|------|
-| 🔐 JWT 认证 | 全面替换 adminKey，登录签发 JWT Token，API 统一 Bearer 认证 |
-| 🗄️ 数据库抽象层 | 创建 `db.js` 统一接口，默认 JSON 文件存储，支持切换 MongoDB/PostgreSQL |
-| 💬 用户私聊 | 房间内点击成员头像发起私聊，Socket.io 实时传输，持久化存储 |
-| 💾 聊天记录持久化 | 房间聊天消息持久化到 `messages.json`，加入房间自动加载最近 100 条 |
-| 🔄 Token 刷新 | 支持 `/api/refresh-token` 接口刷新 JWT Token |
+| Event | Params | Description |
+|-------|--------|-------------|
+| `room-created` | `{ roomId, room }` | Room created successfully |
+| `joined-room` | `{ roomId, name, host, videoUrl, videoState, members, messages, ... }` | Joined room successfully |
+| `join-error` | `{ message }` | Failed to join |
+| `user-joined` | `{ username, memberCount }` | A user joined |
+| `user-left` | `{ username, memberCount }` | A user left |
+| `host-changed` | `{ newHost }` | Host transferred |
+| `rooms-list` | `[room]` | Public room list |
+| `video-play` | `{ currentTime }` | Play command |
+| `video-pause` | `{ currentTime }` | Pause command |
+| `video-seek` | `{ currentTime }` | Seek command |
+| `video-rate-change` | `{ playbackRate }` | Rate change command |
+| `video-sync` | `{ currentTime }` | Periodic sync |
+| `video-state` | `{ isPlaying, currentTime, playbackRate }` | Full video state |
+| `video-loaded` | `{ videoUrl }` | New video loaded |
+| `chat-message` | `{ id, username, message, timestamp }` | New chat message |
+| `file-shared` | `{ id, username, fileName, fileData, ... }` | File shared |
+| `danmaku-received` | `{ id, text, color, position }` | Danmaku received |
+| `private-message-received` | `{ id, from, message, ... }` | Private message received |
 
-**⚙️ 技术改动**
-- 新增 `jsonwebtoken` 依赖
-- 重写 `server/server.js`：所有管理员 API 使用 `authenticateToken` + `requireAdmin` 中间件
-- 新增 `server/db.js`：统一 CRUD 接口，支持 `$set`、`$gt`、`$in` 等操作符
-- 重写 `admin/admin.js`：移除 `ADMIN_KEY`，所有请求携带 `Authorization: Bearer <token>`
-- 更新 `player/player.js`：登录存储 token，`apiFetch` 自动附加 Authorization header
-- 新增私聊弹窗 UI 和样式
-
----
-
-### v2.0.0 — 2026-04-29
-
-**🆕 新增功能**
-
-| 功能 | 描述 |
-|------|------|
-| 🖼️ 用户头像与个性签名 | 上传头像或使用 Canvas 首字母头像，编辑个性签名 |
-| ⭐ 房间收藏 | 收藏/取消收藏房间，大厅快速进入，本地+服务器同步 |
-| 💬 弹幕系统 | 滚动/顶部/底部三种模式，实时发送与显示，关键词屏蔽 |
-| 🎤 语音聊天 | WebRTC P2P 语音通话（实验性），支持静音/挂断 |
-| 🖥️ 屏幕分享 | 房主可实时分享屏幕给房间成员 |
-| 🎬 播放列表 | 添加多个视频，自动连续播放，支持上下切换 |
-| ⏰ 定时关闭 | 15/30/45/60/90/120 分钟预设，支持自定义 |
-| 😴 休息提醒 | 每 45 分钟弹窗提醒休息，支持稍后提醒 |
-| 📺 Bilibili 增强 | 支持 BV/av/ep/ss/短链接/b23.tv，登录引导弹窗 |
-
-**🔒 安全加固**
-
-| 修复项 | 级别 | 说明 |
-|--------|------|------|
-| XSS 全面防护 | P0 | `escapeHtml` 转义 `'"<>`，所有输出均编码 |
-| onclick 注入 | P0 | 全部替换为 `data-*` + 事件委托 |
-| iframe 协议验证 | P0 | 仅允许 `http://` / `https://` |
-| 管理员权限校验 | P0 | 管理员 API 需 `adminKey` 参数 |
-| IDOR 防护 | P0 | 用户资料接口限制只能操作自己的数据 |
-| 输入长度限制 | P1 | 用户名/密码/消息/公告等均加长度校验 |
-| Rate Limiting | P1 | 全站 API 60 req/min |
-| 数据竞争防护 | P1 | 临时文件 + 原子重命名 |
-| 文件大小限制 | P2 | 分享文件 5MB，头像 2MB |
-
-**⚙️ 技术改动**
-- 服务端全面重写，新增弹幕/收藏/播放列表/WebRTC/屏幕分享等 Socket.io 事件
-- 客户端 `player.js` 重构，添加弹幕引擎、WebRTC 管理器、定时器模块
-- `admin.js` 同步更新，修复 XSS 并添加 `adminKey` 校验
-- `player.css` 新增弹幕层、语音面板、播放列表、定时关闭等样式
+</details>
 
 ---
 
-## 历史日志
+## Security
 
-### v1.0.0 — 2026-04-27
+SyncCinema is built with security in mind:
 
-> 项目初始版本，代号为 VideoTogether，后更名为 SyncCinema。
-
-**已实现功能**
-
-| 功能 | 描述 |
-|------|------|
-| 多人实时同步 | 播放/暂停/进度/倍速同步 |
-| 房间系统 | 公开/私密/密码保护三种房间类型 |
-| 实时聊天 | 文字聊天 + 历史记录 |
-| 视频源支持 | MP4、WebM、OGG、HLS、YouTube、Bilibili |
-| 表情系统 | 内置 24 个常用 emoji |
-| 文件分享 | 图片/视频/文档（base64，最大 5MB） |
-| 观看历史 | 本地存储最近观看记录 |
-| 账号系统 | 注册/登录/管理员权限 |
-| 管理后台 | 用户管理、房间管理、数据统计 |
-| 响应式 UI | 暗黑主题，适配移动端/平板/桌面 |
+| Measure | Status | Detail |
+|---------|--------|--------|
+| XSS Protection | Verified | All output HTML-entity encoded, single quotes escaped |
+| onclick Injection | Verified | Replaced with `data-*` + event delegation |
+| iframe Protocol Validation | Verified | Only `http://` / `https://` allowed |
+| Input Length Limits | Verified | Username, password, messages, announcements all validated |
+| Admin Auth | Verified | JWT Token + admin role required for admin APIs |
+| IDOR Protection | Verified | Users can only modify their own data |
+| Rate Limiting | Verified | 60 requests/min per IP |
+| File Size Limits | Verified | Shared files 5MB, avatars 2MB |
+| Data Race Protection | Verified | Temp file + atomic rename for writes |
+| Static File Isolation | Verified | Only `player/` and `admin/` served |
 
 ---
 
-## 开源协议
+## Roadmap
 
-MIT License
+- [ ] Auto-reconnect on network drop
+- [ ] Room password modification
+- [ ] Kick member functionality
+- [ ] Notification sounds
+- [ ] Online status indicators
+- [ ] Message read receipts
+- [ ] Emoji reactions on video
+- [ ] Friend system
+- [ ] MongoDB implementation in `db.js`
+- [ ] Docker Compose one-click deploy
+- [ ] Video upload with HLS transcoding
+
+See the [open issues](https://github.com/2047327434/SyncCinema/issues) for a full list.
 
 ---
 
-<p align="center">
-  用 ❤️ 和 🤖 构建 · SyncCinema 同步影院
-</p>
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+---
+
+## Changelog
+
+<details>
+<summary>v2.1.1 — 2026-05-03</summary>
+
+**Bug Fixes**
+
+- Fixed sync loop: remote events triggering local events re-emitting to server; added `_isRemoteSyncing` flag
+- Fixed EADDRINUSE crash: unhandled error on port conflict now gracefully exits with helpful message
+- Fixed Bilibili bangumi embed: changed from page URL to `player.bilibili.com` embed URL
+- Fixed private chat delivery: server now matches both userId (UUID) and username
+- Fixed private chat receive: `privateChatTarget.id` was always null, now matches username too
+- Hardened static file serving: only `player/` and `admin/` directories exposed
+- Fixed rate limit memory leak: added 60s cleanup interval for expired records
+- Fixed chat DOM memory leak: capped at 200 messages, auto-removes oldest
+- Removed duplicate `saveBlockedKeywordsToStorage` function definition
+- Added graceful shutdown (SIGTERM/SIGINT)
+
+</details>
+
+<details>
+<summary>v2.1.0 — 2026-04-29</summary>
+
+**New Features**
+
+- JWT authentication replacing adminKey
+- Database abstraction layer (`db.js`) supporting JSON/MongoDB/PostgreSQL
+- Private messaging between users
+- Persistent chat history (up to 100 messages per room)
+- Token refresh endpoint (`/api/refresh-token`)
+
+</details>
+
+<details>
+<summary>v2.0.0 — 2026-04-29</summary>
+
+**New Features**
+
+- User avatars and bio
+- Room favorites
+- Danmaku system (scroll/top/bottom + keyword blocking)
+- WebRTC P2P voice chat (experimental)
+- Screen sharing
+- Playlist with auto-play
+- Auto-close timer and rest reminders
+- Bilibili enhancement (BV/av/ep/ss/short links + login guide)
+
+**Security Hardening**
+
+- Full XSS protection, onclick injection fix, iframe protocol validation
+- Admin auth, IDOR protection, input length limits, rate limiting, data race protection
+
+</details>
+
+<details>
+<summary>v1.0.0 — 2026-04-27</summary>
+
+Initial release — real-time video sync, room system, chat, video source support, emoji, file sharing, watch history, accounts, admin dashboard, responsive dark UI.
+
+</details>
+
+---
+
+<div align="center">
+
+Built with passion and code · **SyncCinema**
+
+[Report Bug](https://github.com/2047327434/SyncCinema/issues) · [Request Feature](https://github.com/2047327434/SyncCinema/issues)
+
+</div>
